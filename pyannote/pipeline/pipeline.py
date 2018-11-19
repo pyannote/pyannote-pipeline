@@ -1,0 +1,272 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+# The MIT License (MIT)
+
+# Copyright (c) 2018 CNRS
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# AUTHORS
+# Hervé BREDIN - http://herve.niderb.fr
+
+from pathlib import Path
+from collections import OrderedDict
+import chocolate
+from .typing import PipelineInput
+from .typing import PipelineOutput
+
+from filelock import FileLock
+import yaml
+
+
+class Pipeline:
+    """Base pipeline"""
+
+    def __init__(self):
+        self._hyper_parameters = OrderedDict()
+        self._pipelines = OrderedDict()
+
+    def __getattr__(self, name):
+
+        if '_hyper_parameters' in self.__dict__:
+            _hyper_parameters = self.__dict__['_hyper_parameters']
+            if name in _hyper_parameters:
+                return _hyper_parameters[name]
+
+        if '_pipelines' in self.__dict__:
+            _pipelines = self.__dict__['_pipelines']
+            if name in _pipelines:
+                return _pipelines[name]
+
+        raise AttributeError("'{}' object has no attribute '{}'".format(
+            type(self).__name__, name))
+
+    def __setattr__(self, name, value):
+
+        def remove_from(*dicts):
+            for d in dicts:
+                if name in d:
+                    del d[name]
+
+        # add/update one hyper-parameter
+        _hyper_parameters = self.__dict__.get('_hyper_parameters')
+        if isinstance(value, chocolate.Distribution):
+            if _hyper_parameters is None:
+                raise AttributeError(
+                    "cannot assign hyper-parameters before Pipeline.__init__() call")
+            remove_from(self.__dict__, self._pipelines)
+            _hyper_parameters[name] = value
+            return
+
+        # add/update one sub-pipeline
+        _pipelines = self.__dict__.get('_pipelines')
+        if isinstance(value, Pipeline):
+            if _pipelines is None:
+                raise AttributeError(
+                    "cannot assign pipelines before Pipeline.__init__() call")
+            remove_from(self.__dict__, self._hyper_parameters)
+            _pipelines[name] = value
+            return
+
+        # set hyper-parameter to a fixed value
+        if _hyper_parameters is not None and name in _hyper_parameters:
+            _hyper_parameters[name] = value
+            return
+
+        object.__setattr__(self, name, value)
+
+
+    def __delattr__(self, name):
+
+        if name in self._hyper_parameters:
+            del self._hyper_parameters[name]
+
+        elif name in self._pipelines:
+            del self._pipelines[name]
+
+        else:
+            object.__delattr__(self, name)
+
+    @property
+    def search_space(self):
+
+        space = OrderedDict()
+
+        for pipeline_name, pipeline in self._pipelines.items():
+            for param_name, param_value in pipeline.search_space.items():
+                space[f'{pipeline_name}__{param_name}'] = param_value
+
+        for param_name, param_value in self._hyper_parameters.items():
+            space[param_name] = param_value
+
+        return space
+
+    def instantiate(self):
+        """Instantiate root pipeline with current set of hyper-parameters"""
+        pass
+
+    def with_params(self, **params: dict) -> 'Pipeline':
+        """Recursively instantiate all pipelines
+
+        Parameters
+        ----------
+        params : `dict`
+            Packed parameters
+
+        Returns
+        -------
+        self : `Pipeline`
+            Instantiated pipeline.
+        """
+
+        pipeline_params = {name: {} for name in self._pipelines}
+        for name, value in params.items():
+            tokens = name.split('__')
+            if len(tokens) > 1:
+                pipeline_name = tokens[0]
+                param_name = '__'.join(tokens[1:])
+                pipeline_params[pipeline_name][param_name] = value
+            else:
+                setattr(self, name, value)
+
+        for name, pipeline in self._pipelines.items():
+            pipeline.with_params(**pipeline_params[name])
+
+        self.instantiate()
+
+        return self
+
+    def __call__(self, input: PipelineInput) -> PipelineOutput:
+        """Apply pipeline on input and return its output"""
+        raise NotImplementedError
+
+    def loss(self, input: PipelineInput,
+                   output: PipelineOutput) -> float:
+        """Compute loss for given input/output pair"""
+        raise NotImplementedError
+
+    def unpack(self, params: dict) -> dict:
+        """Unpack parameter dictionary
+
+        param1                   param1
+        param2                   param2
+        sub_pipeline      <--
+            sub_param1           sub_pipeline__sub_param1
+            sub_param2           sub_pipeline__sub_param2
+
+        Parameters
+        ----------
+        params : `dict`
+            Packed parameters.
+
+        Returns
+        -------
+        unpacked_params : `dict`
+            Unpacked parameters.
+        """
+
+        unpacked_params = {}
+
+        pipeline_params = {name: {} for name in self._pipelines}
+        for name, value in params.items():
+            tokens = name.split('__')
+            if len(tokens) > 1:
+                pipeline_name = tokens[0]
+                param_name = '__'.join(tokens[1:])
+                pipeline_params[pipeline_name][param_name] = value
+            else:
+                unpacked_params[name] = value
+
+        for name, pipeline in self._pipelines.items():
+            unpacked_params[name] = pipeline.unpack(pipeline_params[name])
+
+        return unpacked_params
+
+    def pack(self, params: dict) -> dict:
+        """Pack parameter dictionary
+
+        param1                   param1
+        param2                   param2
+        sub_pipeline      -->
+            sub_param1           sub_pipeline__sub_param1
+            sub_param2           sub_pipeline__sub_param2
+
+        Parameters
+        ----------
+        params : `dict`
+            Unpacked parameters.
+
+        Returns
+        -------
+        packed_params : `dict`
+            Packed parameters.
+        """
+
+        packed_params = {name: params[name]
+                         for name in self._hyper_parameters}
+
+        for pipeline_name, pipeline in self._pipelines.items():
+            for name, value in params[pipeline_name].items():
+                packed_params[f'{pipeline_name}__{name}'] = value
+
+        return packed_params
+
+    def dump(self, params:dict, params_yml: Path) -> str:
+        """Dump parameters to disk
+
+        Parameters
+        ----------
+        params : `dict`
+            (Packed) parameters.
+        params_yml : `Path`
+            Path to YAML file.
+
+        Returns
+        -------
+        content : `str`
+            Content written in `param_yml`.
+        """
+
+        unpacked_params = self.unpack(params)
+        content = yaml.dump(unpacked_params, default_flow_style=False)
+        with FileLock(params_yml.with_suffix('.lock')):
+            with open(params_yml, mode='w') as fp:
+                fp.write(content)
+        return content
+
+    def load(self, params_yml: Path) -> 'Pipeline':
+        """Instantiate using parameters on disk
+
+        Parameters
+        ----------
+        param_yml : `Path`
+            Path to YAML file.
+
+        Returns
+        -------
+        self : `Pipeline`
+            Instantiated pipeline
+
+        """
+
+        with open(params_yml, mode='r') as fp:
+            params = yaml.load(fp)
+        packed_params = self.pack(params)
+        return self.with_params(**packed_params)
