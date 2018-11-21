@@ -90,7 +90,7 @@ class Optimizer:
     @property
     def best_pipeline(self) -> Pipeline:
         """Return pipeline instantiated with best parameters so far"""
-        return self.pipeline.with_params(**self.best_params)
+        return self.pipeline.with_params(self.best_params)
 
     @property
     def status(self) -> dict:
@@ -173,7 +173,7 @@ class Optimizer:
                       for name, value in params.items()}
 
             # instantiate pipeline with this set of parameters
-            self.pipeline.with_params(**params)
+            self.pipeline.with_params(params)
 
             # NOTE this is embarrasingly parallel. do something about this
             losses = []

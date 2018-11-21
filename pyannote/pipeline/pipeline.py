@@ -26,6 +26,7 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
+from typing import Optional
 from pathlib import Path
 from collections import OrderedDict
 import chocolate
@@ -41,6 +42,7 @@ class Pipeline:
 
     def __init__(self):
         self._hyper_parameters = OrderedDict()
+        self._frozen = OrderedDict()
         self._pipelines = OrderedDict()
 
     def __getattr__(self, name):
@@ -49,6 +51,11 @@ class Pipeline:
             _hyper_parameters = self.__dict__['_hyper_parameters']
             if name in _hyper_parameters:
                 return _hyper_parameters[name]
+
+        if '_frozen' in self.__dict__:
+            _frozen = self.__dict__['_frozen']
+            if name in _frozen:
+                return _frozen[name]
 
         if '_pipelines' in self.__dict__:
             _pipelines = self.__dict__['_pipelines']
@@ -65,33 +72,35 @@ class Pipeline:
                 if name in d:
                     del d[name]
 
-        # add/update one hyper-parameter
         _hyper_parameters = self.__dict__.get('_hyper_parameters')
+        _frozen = self.__dict__.get('_frozen')
+        _pipelines = self.__dict__.get('_pipelines')
+
+        # add/update one hyper-parameter
         if isinstance(value, chocolate.Distribution):
             if _hyper_parameters is None:
                 raise AttributeError(
                     "cannot assign hyper-parameters before Pipeline.__init__() call")
-            remove_from(self.__dict__, self._pipelines)
+            remove_from(self.__dict__, _frozen, _pipelines)
             _hyper_parameters[name] = value
             return
 
         # add/update one sub-pipeline
-        _pipelines = self.__dict__.get('_pipelines')
         if isinstance(value, Pipeline):
             if _pipelines is None:
                 raise AttributeError(
                     "cannot assign pipelines before Pipeline.__init__() call")
-            remove_from(self.__dict__, self._hyper_parameters)
+            remove_from(self.__dict__, _hyper_parameters, _frozen)
             _pipelines[name] = value
             return
 
-        # set hyper-parameter to a fixed value
+        # freeze hyper-parameter
         if _hyper_parameters is not None and name in _hyper_parameters:
-            _hyper_parameters[name] = value
+            remove_from(_hyper_parameters)
+            _frozen[name] = value
             return
 
         object.__setattr__(self, name, value)
-
 
     def __delattr__(self, name):
 
@@ -100,6 +109,9 @@ class Pipeline:
 
         elif name in self._pipelines:
             del self._pipelines[name]
+
+        elif name in self._frozen:
+            del self._frozen[name]
 
         else:
             object.__delattr__(self, name)
@@ -122,7 +134,49 @@ class Pipeline:
         """Instantiate root pipeline with current set of hyper-parameters"""
         pass
 
-    def with_params(self, **params: dict) -> 'Pipeline':
+    def freeze(self, params: dict) -> 'Pipeline':
+        """Freeze pipeline parameters
+
+        Parameters
+        ----------
+        params : `dict`
+            (Unpacked) frozen parameters.
+
+        Returns
+        -------
+        self : `Pipeline`
+            Pipeline with frozen parameters
+        """
+
+        _hyper_parameters = self.__dict__.get('_hyper_parameters')
+        if _hyper_parameters is None:
+            msg = "cannot freeze hyper-parameters before they are defined"
+            raise AttributeError(msg)
+
+        for name, value in params.items():
+
+            # freeze (or update frozen) root hyper-parameter
+            if name in self._hyper_parameters or name in self._frozen:
+                setattr(self, name, value)
+                continue
+
+            # freeze sub-pipeline hyper-parameter
+            if name in self._pipelines:
+
+                if not isinstance(value, dict):
+                    msg = (f"only hyper-parameters of '{name}' pipeline can "
+                           f"be frozen (not the whole pipeline)")
+                    raise ValueError(msg)
+
+                self._pipelines[name].freeze(value)
+                continue
+
+            msg = f"hyper-parameter '{name}' does not exist"
+            raise ValueError(msg)
+
+        return self
+
+    def with_params(self, params: dict) -> 'Pipeline':
         """Recursively instantiate all pipelines
 
         Parameters
@@ -147,7 +201,7 @@ class Pipeline:
                 setattr(self, name, value)
 
         for name, pipeline in self._pipelines.items():
-            pipeline.with_params(**pipeline_params[name])
+            pipeline.with_params(pipeline_params[name])
 
         self.instantiate()
 
@@ -220,9 +274,12 @@ class Pipeline:
         """
 
         packed_params = {name: params[name]
-                         for name in self._hyper_parameters}
+                         for name in self._hyper_parameters
+                         if name in params}
 
         for pipeline_name, pipeline in self._pipelines.items():
+            if pipeline_name not in params:
+                continue
             for name, value in params[pipeline_name].items():
                 packed_params[f'{pipeline_name}__{name}'] = value
 
@@ -269,4 +326,4 @@ class Pipeline:
         with open(params_yml, mode='r') as fp:
             params = yaml.load(fp)
         packed_params = self.pack(params)
-        return self.with_params(**packed_params)
+        return self.with_params(packed_params)
