@@ -38,7 +38,7 @@ setup(
     packages=find_packages(),
     install_requires=[
 
-        'pyannote.core >= 1.4.1',  # TODO. release pyannote.core 1.5
+        'pyannote.core >= 2.0.1',
         'pyannote.database >= 1.5.4',
         'PyYAML >= 3.12',
         'tensorboardX >= 1.4',
@@ -61,7 +61,7 @@ setup(
 
     # PyPI
     name='pyannote.pipeline',
-    description=('Pipelines.'),
+    description=('Tunable pipelines.'),
     author='Hervé Bredin',
     author_email='bredin+pyannote@limsi.fr',
     url='http://pyannote.github.io/',
