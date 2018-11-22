@@ -193,18 +193,25 @@ class Pipeline:
             Instantiated pipeline.
         """
 
-        pipeline_params = {name: {} for name in self._pipelines}
+        sub_pipeline_params = {name: {} for name in self._pipelines}
         for name, value in params.items():
+
+            # split (packed) parameter name into parts
             tokens = name.split('>')
+
+            # if parameter name contains more than one part,
+            # split it into {sub_pipeline_name} and {param_name}
             if len(tokens) > 1:
-                pipeline_name = tokens[0]
-                param_name = '>'.join(tokens[1:])
-                pipeline_params[pipeline_name][param_name] = value
+                sub_pipeline_name = tokens[0]
+                sub_param_name = '>'.join(tokens[1:])
+                sub_pipeline_params[sub_pipeline_name][sub_param_name] = value
+
+            # parameters
             else:
                 setattr(self, name, value)
 
-        for name, pipeline in self._pipelines.items():
-            pipeline.with_params(pipeline_params[name])
+        for name, sub_pipeline in self._pipelines.items():
+            sub_pipeline.with_params(sub_pipeline_params[name])
 
         self.instantiate()
 
