@@ -123,7 +123,7 @@ class Pipeline:
 
         for pipeline_name, pipeline in self._pipelines.items():
             for param_name, param_value in pipeline.search_space.items():
-                space[f'{pipeline_name}__{param_name}'] = param_value
+                space[f'{pipeline_name}>{param_name}'] = param_value
 
         for param_name, param_value in self._hyper_parameters.items():
             space[param_name] = param_value
@@ -192,10 +192,10 @@ class Pipeline:
 
         pipeline_params = {name: {} for name in self._pipelines}
         for name, value in params.items():
-            tokens = name.split('__')
+            tokens = name.split('>')
             if len(tokens) > 1:
                 pipeline_name = tokens[0]
-                param_name = '__'.join(tokens[1:])
+                param_name = '>'.join(tokens[1:])
                 pipeline_params[pipeline_name][param_name] = value
             else:
                 setattr(self, name, value)
@@ -240,10 +240,10 @@ class Pipeline:
 
         pipeline_params = {name: {} for name in self._pipelines}
         for name, value in params.items():
-            tokens = name.split('__')
+            tokens = name.split('>')
             if len(tokens) > 1:
                 pipeline_name = tokens[0]
-                param_name = '__'.join(tokens[1:])
+                param_name = '>'.join(tokens[1:])
                 pipeline_params[pipeline_name][param_name] = value
             else:
                 unpacked_params[name] = value
@@ -281,7 +281,7 @@ class Pipeline:
             if pipeline_name not in params:
                 continue
             for name, value in params[pipeline_name].items():
-                packed_params[f'{pipeline_name}__{name}'] = value
+                packed_params[f'{pipeline_name}>{name}'] = value
 
         return packed_params
 
