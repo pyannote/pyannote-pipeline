@@ -277,11 +277,12 @@ class Pipeline:
                          for name in self._hyper_parameters
                          if name in params}
 
-        for pipeline_name, pipeline in self._pipelines.items():
-            if pipeline_name not in params:
+        for sub_pipeline_name, sub_pipeline in self._pipelines.items():
+            if sub_pipeline_name not in params:
                 continue
-            for name, value in params[pipeline_name].items():
-                packed_params[f'{pipeline_name}>{name}'] = value
+            sub_packed_params = sub_pipeline.pack(params[sub_pipeline_name])
+            for name, value in sub_packed_params.items():
+                packed_params[f'{sub_pipeline_name}>{name}'] = value
 
         return packed_params
 
