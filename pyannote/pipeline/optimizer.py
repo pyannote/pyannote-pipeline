@@ -183,7 +183,7 @@ class Optimizer:
                 losses.append(loss)
             loss = sum(losses) / len(losses)
 
-            result = {'iteration': token['_chocolate_id'],
+            result = {'iteration': token['_chocolate_id'] + 1,
                       'loss': loss,
                       'params': params,
                       'new_best': False}
