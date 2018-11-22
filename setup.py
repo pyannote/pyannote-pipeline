@@ -37,8 +37,7 @@ setup(
     namespace_packages=['pyannote'],
     packages=find_packages(),
     install_requires=[
-
-        'pyannote.core >= 2.0.1',
+        'pyannote.core >= 2.0.2',
         'pyannote.database >= 1.5.4',
         'PyYAML >= 3.12',
         'tensorboardX >= 1.4',
@@ -47,6 +46,7 @@ setup(
         'tqdm >= 4.28.1',
         'docopt >= 0.6.2',
         'filelock >= 3.0.4',
+        'scikit-learn >= 0.20'
     ],
     dependency_links=[
         'git+https://github.com/AIworx-Labs/chocolate.git@master#egg=chocolate-0.6'
