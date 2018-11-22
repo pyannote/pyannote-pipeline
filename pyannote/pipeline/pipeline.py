@@ -27,6 +27,7 @@
 # Hervé BREDIN - http://herve.niderb.fr
 
 from typing import Optional
+from typing import TextIO
 from pathlib import Path
 from collections import OrderedDict
 import chocolate
@@ -36,6 +37,8 @@ from .typing import PipelineOutput
 from filelock import FileLock
 import yaml
 
+from pyannote.core import Timeline
+from pyannote.core import Annotation
 
 class Pipeline:
     """Base pipeline"""
@@ -214,6 +217,22 @@ class Pipeline:
     def loss(self, input: PipelineInput,
                    output: PipelineOutput) -> float:
         """Compute loss for given input/output pair"""
+        raise NotImplementedError
+
+    def write(self, file: TextIO,
+                    output: PipelineOutput):
+        """Write pipeline output to file"""
+
+        if isinstance(output, Timeline):
+            for s in output:
+                file.write(f'{output.uri} {s.start:.3f} {s.end:.3f}\n')
+            return
+
+        if isinstance(output, Annotation):
+            for s, t, l in output.itertracks(yield_label=True):
+                file.write(f'{output.uri} {output.modality} {s.start:.3f} {s.end:.3f} {t} {l}\n')
+            return
+
         raise NotImplementedError
 
     def unpack(self, params: dict) -> dict:
