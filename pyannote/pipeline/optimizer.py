@@ -47,7 +47,7 @@ class Optimizer:
         Pipeline.
     db : `Path`
         Path to iteration database on disk.
-    sampler : `str`
+    sampler : `str`, optional
         One of "Random", "QuasiRandom", "Bayes", or "CMAES".
         Defaults to "QuasiRandom".
     """
