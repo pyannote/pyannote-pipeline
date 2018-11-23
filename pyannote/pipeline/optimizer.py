@@ -137,8 +137,12 @@ class Optimizer:
         del best_iteration['id']
         del best_iteration['_chocolate_id']
         loss = best_iteration.pop('_loss')
+
         params = {str(name): value
                   for name, value in best_iteration.items()}
+        # chocolate stores parameters as a flat dictionary
+        # while pipeline expects nested dictionaries
+        params = self.pipeline.unpack_params(params)
         status['best'] = {'loss': loss, 'params': params}
 
         return status
@@ -171,6 +175,10 @@ class Optimizer:
             # depending on the sampler, params maybe float or np.float
             params = {name: value.item() if hasattr(value, 'item') else value
                       for name, value in params.items()}
+
+            # chocolate stores parameters as a flat dictionary
+            # while pipeline expects nested dictionaries
+            params = self.pipeline.unpack_params(params)
 
             # instantiate pipeline with this set of parameters
             self.pipeline.with_params(params)

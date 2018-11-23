@@ -121,17 +121,29 @@ class Pipeline:
 
     @property
     def search_space(self):
+        """Search space (used by pyannote.pipeline.Optimizer)"""
 
         space = OrderedDict()
 
-        for pipeline_name, pipeline in self._pipelines.items():
-            for param_name, param_value in pipeline.search_space.items():
-                space[f'{pipeline_name}>{param_name}'] = param_value
+        for sub_pipeline_name, sub_pipeline in self._pipelines.items():
+            for param_name, param_value in sub_pipeline.search_space.items():
+                space[f'{sub_pipeline_name}>{param_name}'] = param_value
 
         for param_name, param_value in self._hyper_parameters.items():
             space[param_name] = param_value
 
         return space
+
+    @property
+    def params(self):
+        """Returns current set of parameters"""
+        params = dict(self._hyper_parameters)
+        params.update(self._frozen)
+        for sub_pipeline_name, sub_pipeline in self._pipelines.items():
+            params[sub_pipeline_name] = dict()
+            for param_name, param_value in sub_pipeline.params.items():
+                params[sub_pipeline_name][param_name] = param_value
+        return params
 
     def instantiate(self):
         """Instantiate root pipeline with current set of hyper-parameters"""
@@ -143,7 +155,7 @@ class Pipeline:
         Parameters
         ----------
         params : `dict`
-            (Unpacked) frozen parameters.
+            Parameters.
 
         Returns
         -------
@@ -158,11 +170,6 @@ class Pipeline:
 
         for name, value in params.items():
 
-            # freeze (or update frozen) root hyper-parameter
-            if name in self._hyper_parameters or name in self._frozen:
-                setattr(self, name, value)
-                continue
-
             # freeze sub-pipeline hyper-parameter
             if name in self._pipelines:
 
@@ -172,6 +179,11 @@ class Pipeline:
                     raise ValueError(msg)
 
                 self._pipelines[name].freeze(value)
+                continue
+
+            # freeze (or update frozen) root hyper-parameter
+            if name in self._hyper_parameters or name in self._frozen:
+                setattr(self, name, value)
                 continue
 
             msg = f"hyper-parameter '{name}' does not exist"
@@ -185,7 +197,7 @@ class Pipeline:
         Parameters
         ----------
         params : `dict`
-            Packed parameters
+            Parameters
 
         Returns
         -------
@@ -193,25 +205,33 @@ class Pipeline:
             Instantiated pipeline.
         """
 
-        sub_pipeline_params = {name: {} for name in self._pipelines}
         for name, value in params.items():
 
-            # split (packed) parameter name into parts
-            tokens = name.split('>')
+            # subpipeline
+            if name in self._pipelines:
+                if not isinstance(value, dict):
+                    msg = (f"only hyper-parameters of '{name}' pipeline can "
+                           f"be instantiated (not the whole pipeline)")
+                    raise ValueError(msg)
+                self._pipelines[name].with_params(value)
+                continue
 
-            # if parameter name contains more than one part,
-            # split it into {sub_pipeline_name} and {param_name}
-            if len(tokens) > 1:
-                sub_pipeline_name = tokens[0]
-                sub_param_name = '>'.join(tokens[1:])
-                sub_pipeline_params[sub_pipeline_name][sub_param_name] = value
+            # frozen hyper-parameters
+            if name in self._frozen:
+                if value != self._frozen[name]:
+                    msg = (f"cannot change value of frozen hyper-parameter "
+                           f"'{name}'")
+                    raise ValueError(msg)
+                continue
 
-            # parameters
-            else:
-                setattr(self, name, value)
+            # regular hyper-parameter
+            if name in self._hyper_parameters:
+                self._hyper_parameters[name] = value
+                continue
 
-        for name, sub_pipeline in self._pipelines.items():
-            sub_pipeline.with_params(sub_pipeline_params[name])
+            # anything else
+            msg = f"hyper-parameter '{name}' does not exist"
+            raise ValueError(msg)
 
         self.instantiate()
 
@@ -242,7 +262,7 @@ class Pipeline:
 
         raise NotImplementedError
 
-    def unpack(self, params: dict) -> dict:
+    def unpack_params(self, params: dict) -> dict:
         """Unpack parameter dictionary
 
         param1                   param1
@@ -254,12 +274,12 @@ class Pipeline:
         Parameters
         ----------
         params : `dict`
-            Packed parameters.
+            Flat dictionary of parameters.
 
         Returns
         -------
         unpacked_params : `dict`
-            Unpacked parameters.
+            Nested dictionaries of parameters.
         """
 
         unpacked_params = {}
@@ -275,52 +295,20 @@ class Pipeline:
                 unpacked_params[name] = value
 
         for name, pipeline in self._pipelines.items():
-            unpacked_params[name] = pipeline.unpack(pipeline_params[name])
+            unpacked_params[name] = pipeline.unpack_params(pipeline_params[name])
 
         return unpacked_params
 
-    def pack(self, params: dict) -> dict:
-        """Pack parameter dictionary
-
-        param1                   param1
-        param2                   param2
-        sub_pipeline      -->
-            sub_param1           sub_pipeline__sub_param1
-            sub_param2           sub_pipeline__sub_param2
-
-        Parameters
-        ----------
-        params : `dict`
-            Unpacked parameters.
-
-        Returns
-        -------
-        packed_params : `dict`
-            Packed parameters.
-        """
-
-        packed_params = {name: params[name]
-                         for name in self._hyper_parameters
-                         if name in params}
-
-        for sub_pipeline_name, sub_pipeline in self._pipelines.items():
-            if sub_pipeline_name not in params:
-                continue
-            sub_packed_params = sub_pipeline.pack(params[sub_pipeline_name])
-            for name, value in sub_packed_params.items():
-                packed_params[f'{sub_pipeline_name}>{name}'] = value
-
-        return packed_params
-
-    def dump(self, params:dict, params_yml: Path) -> str:
+    def dump_params(self, params_yml: Path,
+                          params: Optional[dict] = None) -> str:
         """Dump parameters to disk
 
         Parameters
         ----------
-        params : `dict`
-            (Packed) parameters.
         params_yml : `Path`
             Path to YAML file.
+        params : `dict`, optional
+            Parameters. Defaults to pipeline current parameters.
 
         Returns
         -------
@@ -328,15 +316,16 @@ class Pipeline:
             Content written in `param_yml`.
         """
 
-        unpacked_params = self.unpack(params)
-        content = yaml.dump(unpacked_params, default_flow_style=False)
+        if params is None:
+            params = self.params
+        content = yaml.dump(params, default_flow_style=False)
         with FileLock(params_yml.with_suffix('.lock')):
             with open(params_yml, mode='w') as fp:
                 fp.write(content)
         return content
 
-    def load(self, params_yml: Path) -> 'Pipeline':
-        """Instantiate using parameters on disk
+    def load_params(self, params_yml: Path) -> 'Pipeline':
+        """Instantiate pipeline using parameters from disk
 
         Parameters
         ----------
@@ -352,5 +341,4 @@ class Pipeline:
 
         with open(params_yml, mode='r') as fp:
             params = yaml.load(fp)
-        packed_params = self.pack(params)
-        return self.with_params(packed_params)
+        return self.with_params(params)

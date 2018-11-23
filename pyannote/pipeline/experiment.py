@@ -148,7 +148,7 @@ class Experiment:
 
         experiment_dir = params_yml.parents[2]
         xp = cls(experiment_dir, training=training)
-        xp.pipeline_.load(params_yml)
+        xp.pipeline_.load_params(params_yml)
         return xp
 
     def __init__(self, experiment_dir: Path, training: bool = False):
@@ -241,7 +241,7 @@ class Experiment:
                 best_loss = loss
                 writer.add_scalar(f'train/{protocol_name}.{subset}/loss',
                                   loss, global_step=iteration)
-                self.pipeline_.dump(params, params_yml)
+                self.pipeline_.dump_params(params_yml, params=params)
 
             # progress bar
             desc = (f'Best = {100 * best_loss:g}% | '
@@ -281,8 +281,8 @@ class Experiment:
             f'Loss = {100 * status["best"]["loss"]:g}% '
             f'with the following hyper-parameters:')
 
-        params = self.pipeline_.unpack(status['best']['params'])
-        content = yaml.dump(params, default_flow_style=False)
+        content = yaml.dump(status['best']['params'],
+                            default_flow_style=False)
         print(content)
 
     def apply(self, protocol_name: str,

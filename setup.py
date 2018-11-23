@@ -37,7 +37,7 @@ setup(
     namespace_packages=['pyannote'],
     packages=find_packages(),
     install_requires=[
-        'pyannote.core >= 2.0.2',
+        'pyannote.core >= 2.0.3',
         'pyannote.database >= 1.5.4',
         'PyYAML >= 3.12',
         'tensorboardX >= 1.4',
