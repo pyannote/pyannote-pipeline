@@ -119,7 +119,8 @@ class Optimizer:
             # transform params using space
             iteration = space([raw_iteration[k] for k in space.names()])
             # copy loss value
-            iteration['_loss'] = raw_iteration['_loss']
+            if '_loss' in raw_iteration:
+                iteration['_loss'] = raw_iteration['_loss']
             # add iteration to the list
             iterations.append(iteration)
 
@@ -146,8 +147,6 @@ class Optimizer:
             return loss
 
         best_iteration = min(iterations, key=get_loss)
-        del best_iteration['id']
-        del best_iteration['_chocolate_id']
         loss = best_iteration.pop('_loss')
 
         params = {str(name): value
