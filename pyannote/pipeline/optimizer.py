@@ -109,7 +109,20 @@ class Optimizer:
         If no iteration has finished, `status` does not provide a 'best' key.
         """
 
-        iterations = self.connection_.all_results()
+
+        with self.connection_.lock():
+            space = self.connection_.get_space()
+            raw_iterations = self.connection_.all_results()
+
+        iterations = []
+        for raw_iteration in raw_iterations:
+            # transform params using space
+            iteration = space([raw_iteration[k] for k in space.names()])
+            # copy loss value
+            if '_loss' in raw_iteration:
+                iteration['_loss'] = raw_iteration['_loss']
+            # add iteration to the list
+            iterations.append(iteration)
 
         # total number of iterations (including those which failed and those
         # currently running)
@@ -134,8 +147,6 @@ class Optimizer:
             return loss
 
         best_iteration = min(iterations, key=get_loss)
-        del best_iteration['id']
-        del best_iteration['_chocolate_id']
         loss = best_iteration.pop('_loss')
 
         params = {str(name): value
