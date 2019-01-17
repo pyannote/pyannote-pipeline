@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018 CNRS
+# Copyright (c) 2018-2019 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -49,8 +49,8 @@ Common options:
                              section below for more details.
   --iterations=<iterations>  Number of iterations. [default: 1]
   --forever                  Iterate forever.
-  --sampler=<sampler>        Choose sampler between Random, QuasiRandom, CMAES,
-                             or Bayes [default: QuasiRandom].
+  --sampler=<sampler>        Choose sampler between RandomSampler, TPESampler
+                             [default: TPESampler].
 
 "apply" mode:
   <params.yml>               Path to hyper-parameters.
@@ -105,7 +105,6 @@ from docopt import docopt
 
 import itertools
 from tqdm import tqdm
-from tensorboardX import SummaryWriter
 
 from pyannote.database import FileFinder
 from pyannote.database import get_protocol
@@ -184,9 +183,10 @@ class Experiment:
             self.pipeline_.freeze(params)
 
     def train(self, protocol_name: str,
-                    subset: str = 'development',
-                    n_iterations: int = 1,
-                    sampler: str = 'QuasiRandom'):
+                    subset: Optional[str] = 'development',
+                    n_iterations: Optional[int] = 1,
+                    sampler: Optional[str] = None,
+                    pruner: Optional[str] = None):
         """Train pipeline
 
         Parameters
@@ -198,8 +198,9 @@ class Experiment:
         n_iterations : `int`, optional
             Number of iterations. Defaults to 1.
         sampler : `str`, optional
-            Choose sampler between Random, QuasiRandom, CMAES, or Bayes.
-            Defaults to 'QuasiRandom'.
+            Choose sampler between RandomSampler and TPESampler
+        pruner : `str`, optional
+            Choose between MedianPruner or SuccessiveHalvingPruner.
         """
         train_dir = Path(self.TRAIN_DIR.format(
             experiment_dir=self.experiment_dir,
@@ -210,15 +211,14 @@ class Experiment:
         protocol = get_protocol(protocol_name, progress=False,
                                 preprocessors=self.preprocessors_)
 
+        study_name = "default"
         optimizer = Optimizer(self.pipeline_,
-                              train_dir / 'iterations.db',
-                              sampler=sampler)
+                              db=train_dir / 'iterations.db',
+                              study_name=study_name,
+                              sampler=sampler,
+                              pruner=pruner)
 
         params_yml = train_dir / 'params.yml'
-
-        # TODO. find a way to remove this "pid" hack
-        log_dir = train_dir / str(os.getpid())
-        writer = SummaryWriter(log_dir=log_dir)
 
         progress_bar = tqdm(unit='iteration')
         progress_bar.set_description('Waiting for first iteration to complete')
@@ -227,25 +227,21 @@ class Experiment:
         inputs = list(getattr(protocol, subset)())
         iterations = optimizer.tune_iter(inputs)
 
-        best_loss = optimizer.status.get('best', {'loss': np.inf})['loss']
+        try:
+            best_loss = optimizer.best_loss
+        except ValueError as e:
+            best_loss = np.inf
         count = itertools.count() if n_iterations < 0 else range(n_iterations)
 
         for i, status in zip(count, iterations):
 
-            iteration = status['iteration']
-            loss = status['loss']
-            params = status['params']
-            new_best = status['new_best']
+            best_loss = status['loss']
+            best_params = status['params']
 
-            if status['new_best']:
-                best_loss = loss
-                writer.add_scalar(f'train/{protocol_name}.{subset}/loss',
-                                  loss, global_step=iteration)
-                self.pipeline_.dump_params(params_yml, params=params)
+            self.pipeline_.dump_params(params_yml, params=best_params)
 
             # progress bar
-            desc = (f'Best = {100 * best_loss:g}% | '
-                    f'#{iteration} = {100 * loss:g}%')
+            desc = f'Best = {100 * best_loss:g}%'
             progress_bar.set_description(desc=desc)
             progress_bar.update(1)
 
@@ -266,23 +262,24 @@ class Experiment:
             protocol=protocol_name,
             subset=subset))
 
+        study_name = "default"
         optimizer = Optimizer(self.pipeline_,
-                              train_dir / 'iterations.db')
+                              db=train_dir / 'iterations.db',
+                              study_name=study_name)
 
-        status = optimizer.status
-        count = status['iterations']['count']
-        done = status['iterations']['done']
-
-        if 'best' not in status:
+        try:
+            best_loss = optimizer.best_loss
+        except ValueError as e:
             print('Still waiting for at least one iteration to succeed.')
             return
 
+        best_params = optimizer.best_params
+
         print(
-            f'Loss = {100 * status["best"]["loss"]:g}% '
+            f'Loss = {100 * best_loss:g}% '
             f'with the following hyper-parameters:')
 
-        content = yaml.dump(status['best']['params'],
-                            default_flow_style=False)
+        content = yaml.dump(best_params, default_flow_style=False)
         print(content)
 
     def apply(self, protocol_name: str,
