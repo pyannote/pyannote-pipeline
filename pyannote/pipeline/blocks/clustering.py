@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018 CNRS
+# Copyright (c) 2018-2019 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@ import numpy as np
 from typing import Optional
 
 from scipy.cluster.hierarchy import fcluster
-from pyannote.core.utils.hierarchy import linkage
+from pyannote.core.utils.hierarchy import linkage, fcluster_auto
 
 import sklearn.cluster
 from scipy.spatial.distance import squareform
@@ -39,9 +39,8 @@ from pyannote.core.utils.distance import pdist
 from pyannote.core.utils.distance import dist_range
 from pyannote.core.utils.distance import l2_normalize
 
-import chocolate
 from ..pipeline import Pipeline
-
+from ..parameter import Uniform
 
 class HierarchicalAgglomerativeClustering(Pipeline):
     """Hierarchical agglomerative clustering
@@ -54,15 +53,22 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         Distance metric. Defaults to 'cosine'
     normalize : `bool`, optional
         L2 normalize vectors before clustering.
+    use_threshold : `bool`, optional
+        Stop merging clusters when their distance is greater than the value of
+        `threshold` hyper-parameters. By default (False), this pipeline relies
+        on the within-class sum of square elbow criterion to select the best
+        number of clusters.
 
     Hyper-parameters
     ----------------
     threshold : `float`
-        Do not merge clusters with distance greater than `threshold`.
+        Stop merging clusters when their distance is greater than `threshold`.
+        Not used when `use_threshold` is True (default).
     """
 
     def __init__(self, method: Optional[str] = 'pool',
                        metric: Optional[str] = 'cosine',
+                       use_threshold: Optional[bool] = False,
                        normalize: Optional[bool] = False):
 
         super().__init__()
@@ -70,15 +76,20 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         self.metric = metric
         self.normalize = normalize
 
-        min_dist, max_dist = dist_range(metric=self.metric,
-                                        normalize=self.normalize)
-        if not np.isfinite(max_dist):
-            # this is arbitray and might lead to suboptimal results
-            max_dist = 1e6
-            msg = (f'bounding distance threshold to {max_dist:g}: '
-                   f'this might lead to suboptimal results.')
-            warnings.warn(msg)
-        self.threshold = chocolate.uniform(min_dist, max_dist)
+        self.use_threshold = use_threshold
+        if self.use_threshold:
+
+            min_dist, max_dist = dist_range(metric=self.metric,
+                                            normalize=self.normalize)
+            if not np.isfinite(max_dist):
+                # this is arbitray and might lead to suboptimal results
+                max_dist = 1e6
+                msg = (f'bounding distance threshold to {max_dist:g}: '
+                       f'this might lead to suboptimal results.')
+                warnings.warn(msg)
+
+            self.threshold = Uniform(min_dist, max_dist)
+
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
         """Apply hierarchical agglomerative clustering
@@ -100,10 +111,12 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         # compute agglomerative clustering all the way up to one cluster
         Z = linkage(X, method=self.method, metric=self.metric)
 
-        # obtain flat clusters by applying distance threshold
-        clusters = fcluster(Z, self.threshold, criterion='distance')
+        # obtain flat clusters
 
-        return clusters
+        if self.use_threshold == 'threshold':
+            return fcluster(Z, self.threshold, criterion='distance')
+
+        return fcluster_auto(X, Z, metric=self.metric)
 
 
 class AffinityPropagationClustering(Pipeline):
@@ -126,8 +139,8 @@ class AffinityPropagationClustering(Pipeline):
         super().__init__()
         self.metric = metric
 
-        self.damping = chocolate.uniform(0.5, 1.0)
-        self.preference = chocolate.uniform(-10., 0.)
+        self.damping = Uniform(0.5, 1.0)
+        self.preference = Uniform(-10., 0.)
 
     def instantiate(self):
         """Instantiate internal sklearn.cluster.AffinityPropagation"""

@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018 CNRS
+# Copyright (c) 2018-2019 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,19 +37,14 @@ setup(
     namespace_packages=['pyannote'],
     packages=find_packages(),
     install_requires=[
-        'pyannote.core >= 2.0.3',
-        'pyannote.database >= 1.5.4',
+        'pyannote.core >= 2.1',
+        'pyannote.database >= 1.5.5',
         'PyYAML >= 3.12',
-        'tensorboardX >= 1.4',
-        'chocolate >= 0.6',
-        'ghalton >= 0.6.1',
-        'tqdm >= 4.28.1',
+        'optuna >= 0.6',
+        'tqdm >= 4.29.1',
         'docopt >= 0.6.2',
-        'filelock >= 3.0.4',
-        'scikit-learn >= 0.20'
-    ],
-    dependency_links=[
-        'git+https://github.com/AIworx-Labs/chocolate.git@master#egg=chocolate-0.6'
+        'filelock >= 3.0.10',
+        'scikit-learn >= 0.20.2'
     ],
     entry_points = {
         'console_scripts': [
