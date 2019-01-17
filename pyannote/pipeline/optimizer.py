@@ -151,7 +151,7 @@ class Optimizer:
 
             # use pyannote.metrics metric when available
             try:
-                metric = self.pipeline.metric()
+                metric = self.pipeline.get_metric()
             except NotImplementedError as e:
                 metric = None
                 losses = []

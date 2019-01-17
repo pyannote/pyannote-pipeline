@@ -457,7 +457,7 @@ class Pipeline:
         """Apply pipeline on input and return its output"""
         raise NotImplementedError
 
-    def metric(self) -> 'pyannote.metrics.base.BaseMetric':
+    def get_metric(self) -> 'pyannote.metrics.base.BaseMetric':
         """Return new metric (from pyannote.metrics)
 
         When this method is implemented, the returned metric is used as a
