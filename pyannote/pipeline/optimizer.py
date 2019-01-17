@@ -39,7 +39,7 @@ import optuna.samplers
 import optuna.pruners
 
 import optuna.logging
-optuna.logging.set_verbosity(optuna.logging.FATAL)
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
 class Optimizer:
