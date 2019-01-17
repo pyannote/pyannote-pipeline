@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018 CNRS
+# Copyright (c) 2018-2019 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -30,9 +30,8 @@ import warnings
 import numpy as np
 from typing import Optional
 
-import chocolate
-
 from ..pipeline import Pipeline
+from ..parameter import Uniform
 from pyannote.core.utils.distance import cdist
 from pyannote.core.utils.distance import dist_range
 from pyannote.core.utils.distance import l2_normalize
@@ -69,7 +68,7 @@ class ClosestAssignment(Pipeline):
             msg = (f'bounding distance threshold to {max_dist:g}: '
                    f'this might lead to suboptimal results.')
             warnings.warn(msg)
-        self.threshold = chocolate.uniform(min_dist, max_dist)
+        self.threshold = Uniform(min_dist, max_dist)
 
     def __call__(self, X_target, X):
         """Assign each sample to its closest class (if close enough)
