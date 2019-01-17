@@ -149,26 +149,44 @@ class Optimizer:
                 Loss
             """
 
+            # use pyannote.metrics metric when available
+            try:
+                metric = self.pipeline.metric()
+            except NotImplementedError as e:
+                metric = None
+                losses = []
+
             # instantiate pipeline with value suggested in current trial
             pipeline = self.pipeline.instantiate(
                 self.pipeline.parameters(trial=trial))
 
             # accumulate loss for each input
-            losses = []
             for i, input in enumerate(inputs):
                 output = pipeline(input)
-                loss = pipeline.loss(input, output)
-                losses.append(loss)
+
+                # when metric is not available, use loss method instead
+                if metric is None:
+                    loss = pipeline.loss(input, output)
+                    losses.append(loss)
+
+                # when metric is available,`input` is expected to be provided
+                # by a `pyannote.database` protocol
+                else:
+                    from pyannote.database import get_annotated
+                    _ = metric(input['annotation'], output,
+                               uem=get_annotated(input))
 
                 if self.pruner is None:
                     continue
 
                 # trial pruning
-                trial.report(np.mean(losses), i)
+                trial.report(
+                    np.mean(losses) if metric is None else abs(metric), i)
                 if trial.should_prune(i):
                     raise optuna.structs.TrialPruned()
 
-            return np.mean(losses)
+            return np.mean(losses) if metric is None else abs(metric)
+
 
         return objective
 

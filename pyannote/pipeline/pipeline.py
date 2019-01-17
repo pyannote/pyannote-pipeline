@@ -457,9 +457,34 @@ class Pipeline:
         """Apply pipeline on input and return its output"""
         raise NotImplementedError
 
+    def metric(self) -> 'pyannote.metrics.base.BaseMetric':
+        """Return new metric (from pyannote.metrics)
+
+        When this method is implemented, the returned metric is used as a
+        replacement for the loss method below.
+
+        Returns
+        -------
+        metric : `pyannote.metrics.base.BaseMetric`
+        """
+        raise NotImplementedError
+
     def loss(self, input: PipelineInput,
                    output: PipelineOutput) -> float:
-        """Compute loss for given input/output pair"""
+        """Compute loss for given input/output pair
+
+        Parameters
+        ----------
+        input : object
+            Pipeline input.
+        output : object
+            Pipeline output
+
+        Returns
+        -------
+        loss : `float`
+            Loss value
+        """
         raise NotImplementedError
 
     def write(self, file: TextIO,
