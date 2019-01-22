@@ -49,8 +49,10 @@ Common options:
                              section below for more details.
   --iterations=<iterations>  Number of iterations. [default: 1]
   --forever                  Iterate forever.
-  --sampler=<sampler>        Choose sampler between RandomSampler, TPESampler
+  --sampler=<sampler>        Choose sampler between RandomSampler or TPESampler
                              [default: TPESampler].
+  --pruner=<pruner>          Choose pruner between MedianPruner or
+                             SuccessiveHalvingPruner. Defaults to no pruning.
 
 "apply" mode:
   <params.yml>               Path to hyper-parameters.
@@ -334,13 +336,14 @@ def main():
             iterations = int(arguments['--iterations'])
 
         sampler = arguments['--sampler']
+        pruner = arguments['--pruner']
 
         experiment_dir = Path(arguments['<experiment_dir>'])
         experiment_dir = experiment_dir.expanduser().resolve(strict=True)
 
         experiment = Experiment(experiment_dir, training=True)
         experiment.train(protocol_name, subset=subset, n_iterations=iterations,
-                         sampler=sampler)
+                         sampler=sampler, pruner=pruner)
 
     if arguments['best']:
 
