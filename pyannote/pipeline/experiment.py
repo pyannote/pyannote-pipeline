@@ -307,6 +307,13 @@ class Experiment:
         else:
             path = output_dir / f'{protocol_name}.{subset}.txt'
 
+        # initialize evaluation metric
+        try:
+            metric = self.pipeline_.get_metric()
+        except NotImplementedError as e:
+            metric = None
+            losses = []
+
         with open(path, mode='w') as fp:
 
             if subset is None:
@@ -316,7 +323,25 @@ class Experiment:
 
             for current_file in files:
                 output = self.pipeline_(current_file)
+
+                # evaluate output
+                if metric is None:
+                    loss = self.pipeline_.loss(current_file, output)
+                    losses.append(loss)
+
+                else:
+                    from pyannote.database import get_annotated
+                    _ = metric(input['annotation'], output,
+                               uem=get_annotated(current_file))
+
                 self.pipeline_.write(fp, output)
+
+        # report evaluation metric
+        if metric is None:
+            loss = np.mean(losses)
+            print(f'Loss = {loss:g}')
+        else:
+            _ = metric.report(display=True)
 
 def main():
 
