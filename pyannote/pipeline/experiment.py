@@ -331,7 +331,7 @@ class Experiment:
 
                 else:
                     from pyannote.database import get_annotated
-                    _ = metric(input['annotation'], output,
+                    _ = metric(current_file['annotation'], output,
                                uem=get_annotated(current_file))
 
                 self.pipeline_.write(fp, output)
