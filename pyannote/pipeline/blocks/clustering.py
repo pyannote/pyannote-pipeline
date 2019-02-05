@@ -142,8 +142,8 @@ class AffinityPropagationClustering(Pipeline):
         self.damping = Uniform(0.5, 1.0)
         self.preference = Uniform(-10., 0.)
 
-    def instantiate(self):
-        """Instantiate internal sklearn.cluster.AffinityPropagation"""
+    def initialize(self):
+        """Initialize internal sklearn.cluster.AffinityPropagation"""
 
         self.affinity_propagation_ = sklearn.cluster.AffinityPropagation(
             damping=self.damping, preference=self.preference,

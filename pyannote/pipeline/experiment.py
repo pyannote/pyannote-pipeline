@@ -49,8 +49,10 @@ Common options:
                              section below for more details.
   --iterations=<iterations>  Number of iterations. [default: 1]
   --forever                  Iterate forever.
-  --sampler=<sampler>        Choose sampler between RandomSampler, TPESampler
+  --sampler=<sampler>        Choose sampler between RandomSampler or TPESampler
                              [default: TPESampler].
+  --pruner=<pruner>          Choose pruner between MedianPruner or
+                             SuccessiveHalvingPruner. Defaults to no pruning.
 
 "apply" mode:
   <params.yml>               Path to hyper-parameters.
@@ -174,7 +176,7 @@ class Experiment:
         # initialize pipeline
         pipeline_name = self.config_['pipeline']['name']
         Klass = get_class_by_name(
-            pipeline_name, default_module_name='pyannote.audio.pipeline')
+            pipeline_name, default_module_name='pyannote.pipeline.blocks')
         self.pipeline_ = Klass(**self.config_['pipeline'].get('params', {}))
 
         # freeze  parameters
@@ -305,6 +307,13 @@ class Experiment:
         else:
             path = output_dir / f'{protocol_name}.{subset}.txt'
 
+        # initialize evaluation metric
+        try:
+            metric = self.pipeline_.get_metric()
+        except NotImplementedError as e:
+            metric = None
+            losses = []
+
         with open(path, mode='w') as fp:
 
             if subset is None:
@@ -314,7 +323,25 @@ class Experiment:
 
             for current_file in files:
                 output = self.pipeline_(current_file)
+
+                # evaluate output
+                if metric is None:
+                    loss = self.pipeline_.loss(current_file, output)
+                    losses.append(loss)
+
+                else:
+                    from pyannote.database import get_annotated
+                    _ = metric(current_file['annotation'], output,
+                               uem=get_annotated(current_file))
+
                 self.pipeline_.write(fp, output)
+
+        # report evaluation metric
+        if metric is None:
+            loss = np.mean(losses)
+            print(f'Loss = {loss:g}')
+        else:
+            _ = metric.report(display=True)
 
 def main():
 
@@ -334,13 +361,14 @@ def main():
             iterations = int(arguments['--iterations'])
 
         sampler = arguments['--sampler']
+        pruner = arguments['--pruner']
 
         experiment_dir = Path(arguments['<experiment_dir>'])
         experiment_dir = experiment_dir.expanduser().resolve(strict=True)
 
         experiment = Experiment(experiment_dir, training=True)
         experiment.train(protocol_name, subset=subset, n_iterations=iterations,
-                         sampler=sampler)
+                         sampler=sampler, pruner=pruner)
 
     if arguments['best']:
 

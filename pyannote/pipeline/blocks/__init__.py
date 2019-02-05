@@ -35,3 +35,7 @@ This module is meant to store 'base' pipelines useful in many situations
 (such as clustering based on embeddings)
 
 """
+
+from .classification import ClosestAssignment
+from .clustering import HierarchicalAgglomerativeClustering
+from .clustering import AffinityPropagationClustering

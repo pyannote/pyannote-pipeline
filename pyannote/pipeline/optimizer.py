@@ -29,6 +29,7 @@
 from typing import Iterable, Optional, Callable, Generator
 from .typing import PipelineInput
 
+import time
 import numpy as np
 
 from pathlib import Path
@@ -39,7 +40,7 @@ import optuna.samplers
 import optuna.pruners
 
 import optuna.logging
-optuna.logging.set_verbosity(optuna.logging.FATAL)
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
 class Optimizer:
@@ -134,6 +135,7 @@ class Optimizer:
 
         # this is needed for `inputs` that can be only iterated once.
         inputs = list(inputs)
+        n_inputs = len(inputs)
 
         def objective(trial: Trial) -> float:
             """Compute objective value
@@ -149,26 +151,60 @@ class Optimizer:
                 Loss
             """
 
+            # use pyannote.metrics metric when available
+            try:
+                metric = self.pipeline.get_metric()
+            except NotImplementedError as e:
+                metric = None
+                losses = []
+
+            processing_time = []
+            evaluation_time = []
+
             # instantiate pipeline with value suggested in current trial
             pipeline = self.pipeline.instantiate(
                 self.pipeline.parameters(trial=trial))
 
             # accumulate loss for each input
-            losses = []
             for i, input in enumerate(inputs):
+
+                # process input with pipeline
+                # (and keep track of processing time)
+                before_processing = time.time()
                 output = pipeline(input)
-                loss = pipeline.loss(input, output)
-                losses.append(loss)
+                after_processing = time.time()
+                processing_time.append(after_processing - before_processing)
+
+                # evaluate output (and keep track of evaluation time)
+                before_evaluation = time.time()
+
+                # when metric is not available, use loss method instead
+                if metric is None:
+                    loss = pipeline.loss(input, output)
+                    losses.append(loss)
+
+                # when metric is available,`input` is expected to be provided
+                # by a `pyannote.database` protocol
+                else:
+                    from pyannote.database import get_annotated
+                    _ = metric(input['annotation'], output,
+                               uem=get_annotated(input))
+
+                after_evaluation = time.time()
+                evaluation_time.append(after_evaluation - before_evaluation)
 
                 if self.pruner is None:
                     continue
 
-                # trial pruning
-                trial.report(np.mean(losses), i)
+                trial.report(
+                    np.mean(losses) if metric is None else abs(metric), i)
                 if trial.should_prune(i):
                     raise optuna.structs.TrialPruned()
 
-            return np.mean(losses)
+            trial.set_user_attr('processing_time', sum(processing_time))
+            trial.set_user_attr('evaluation_time', sum(evaluation_time))
+
+            return np.mean(losses) if metric is None else abs(metric)
 
         return objective
 
