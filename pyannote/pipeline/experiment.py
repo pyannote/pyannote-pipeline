@@ -176,7 +176,7 @@ class Experiment:
         # initialize pipeline
         pipeline_name = self.config_['pipeline']['name']
         Klass = get_class_by_name(
-            pipeline_name, default_module_name='pyannote.audio.pipeline')
+            pipeline_name, default_module_name='pyannote.pipeline.blocks')
         self.pipeline_ = Klass(**self.config_['pipeline'].get('params', {}))
 
         # freeze  parameters
