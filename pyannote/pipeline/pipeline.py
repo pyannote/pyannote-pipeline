@@ -28,6 +28,7 @@
 
 from typing import Optional
 from typing import TextIO
+from typing import Union
 from pathlib import Path
 from collections import OrderedDict
 from .parameter import Parameter, Frozen
@@ -487,18 +488,77 @@ class Pipeline:
         """
         raise NotImplementedError
 
+    @property
+    def write_format(self):
+        return 'rttm'
+
     def write(self, file: TextIO,
                     output: PipelineOutput):
-        """Write pipeline output to file"""
+        """Write pipeline output to file
+
+        Parameters
+        ----------
+        file : file object
+        output : object
+            Pipeline output
+        """
+
+        return getattr(self, f'write_{self.write_format}')(file, output)
+
+    def write_rttm(self, file: TextIO,
+                         output: Union[Timeline, Annotation]):
+        """Write pipeline output to "rttm" file
+
+        Parameters
+        ----------
+        file : file object
+        output : `pyannote.core.Timeline` or `pyannote.core.Annotation`
+            Pipeline output
+        """
+
+        if isinstance(output, Timeline):
+            output = output.to_annotation(generator='string')
+
+        if isinstance(output, Annotation):
+            for s, t, l in output.itertracks(yield_label=True):
+                line = (
+                    f'SPEAKER {output.uri} 1 {s.start:.3f} {s.duration:.3f} '
+                    f'<NA> <NA> {l} <NA> <NA>\n'
+                )
+                file.write(line)
+            return
+
+        msg = (
+            f'Dumping {output.__class__.__name__} instances to "rttm" files '
+            f'is not supported.'
+        )
+        raise NotImplementedError(msg)
+
+    def write_txt(self, file: TextIO,
+                        output: Union[Timeline, Annotation]):
+        """Write pipeline output to "txt" file
+
+        Parameters
+        ----------
+        file : file object
+        output : `pyannote.core.Timeline` or `pyannote.core.Annotation`
+            Pipeline output
+        """
 
         if isinstance(output, Timeline):
             for s in output:
-                file.write(f'{output.uri} {s.start:.3f} {s.end:.3f}\n')
+                line = f'{output.uri} {s.start:.3f} {s.end:.3f}\n'
+                file.write(line)
             return
 
         if isinstance(output, Annotation):
             for s, t, l in output.itertracks(yield_label=True):
-                file.write(f'{output.uri} {output.modality} {s.start:.3f} {s.end:.3f} {t} {l}\n')
+                line = f'{output.uri} {s.start:.3f} {s.end:.3f} {t} {l}\n'
+                file.write(line)
             return
 
-        raise NotImplementedError
+        msg = (
+            f'Dumping {output.__class__.__name__} instances to "txt" files '
+            f'is not supported.'
+        )
+        raise NotImplementedError(msg)
