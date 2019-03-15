@@ -113,7 +113,7 @@ class HierarchicalAgglomerativeClustering(Pipeline):
 
         # obtain flat clusters
 
-        if self.use_threshold == 'threshold':
+        if self.use_threshold:
             return fcluster(Z, self.threshold, criterion='distance')
 
         return fcluster_auto(X, Z, metric=self.metric)
