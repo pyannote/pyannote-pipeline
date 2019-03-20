@@ -302,10 +302,11 @@ class Experiment:
                                 preprocessors=self.preprocessors_)
 
         output_dir.mkdir(parents=True, exist_ok=False)
+        extension = self.pipeline_.write_format
         if subset is None:
-            path = output_dir / f'{protocol_name}.all.txt'
+            path = output_dir / f'{protocol_name}.all.{extension}'
         else:
-            path = output_dir / f'{protocol_name}.{subset}.txt'
+            path = output_dir / f'{protocol_name}.{subset}.{extension}'
 
         # initialize evaluation metric
         try:

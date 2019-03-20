@@ -1,3 +1,9 @@
+### Version 1.1 (2019-03-20)
+
+  - feat: add export to RTTM format
+  - setup: switch to pyannote.database 2.0
+  - fix: fix "use_threshold" parameter in HAC block
+
 ### Version 1.0 (2019-02-05)
 
   - feat: add support for pyannote.metrics (through `Pipeline.get_metric`)
