@@ -1,3 +1,8 @@
+### Version 1.1.1 (2019-04-09)
+
+  - fix: do not raise FileExistsError when output directory exists in `pyannote-pipeline apply`
+  - fix: skip evaluation of protocols without groundtruth in `pyannote-pipeline apply`
+
 ### Version 1.1 (2019-03-20)
 
   - feat: add export to RTTM format
