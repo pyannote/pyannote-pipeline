@@ -301,7 +301,7 @@ class Experiment:
         protocol = get_protocol(protocol_name, progress=True,
                                 preprocessors=self.preprocessors_)
 
-        output_dir.mkdir(parents=True, exist_ok=False)
+        output_dir.mkdir(parents=True, exist_ok=True)
         extension = self.pipeline_.write_format
         if subset is None:
             path = output_dir / f'{protocol_name}.all.{extension}'
@@ -315,6 +315,8 @@ class Experiment:
             metric = None
             losses = []
 
+        skip_metric = False
+
         with open(path, mode='w') as fp:
 
             if subset is None:
@@ -323,19 +325,37 @@ class Experiment:
                 files = getattr(protocol, subset)()
 
             for current_file in files:
+
+                # apply pipeline and dump output to file
                 output = self.pipeline_(current_file)
-
-                # evaluate output
-                if metric is None:
-                    loss = self.pipeline_.loss(current_file, output)
-                    losses.append(loss)
-
-                else:
-                    from pyannote.database import get_annotated
-                    _ = metric(current_file['annotation'], output,
-                               uem=get_annotated(current_file))
-
                 self.pipeline_.write(fp, output)
+
+                if skip_metric:
+                    continue
+
+                try:
+
+                    if metric is None:
+                        loss = self.pipeline_.loss(current_file, output)
+                        losses.append(loss)
+
+                    else:
+                        from pyannote.database import get_annotated
+                        _ = metric(current_file['annotation'], output,
+                                   uem=get_annotated(current_file))
+
+                except Exception as e:
+                    # this may happen for files with no available groundtruth.
+                    # in this case, we simply do not perform evaluation
+                    skip_metric = True
+
+        if skip_metric:
+            msg = (
+                f'For some (possibly good) reason, the output of this '
+                f'pipeline could not be evaluated on {protocol_name}.'
+            )
+            print(msg)
+            return
 
         # report evaluation metric
         if metric is None:
