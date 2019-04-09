@@ -301,7 +301,7 @@ class Experiment:
         protocol = get_protocol(protocol_name, progress=True,
                                 preprocessors=self.preprocessors_)
 
-        output_dir.mkdir(parents=True, exist_ok=False)
+        output_dir.mkdir(parents=True, exist_ok=True)
         extension = self.pipeline_.write_format
         if subset is None:
             path = output_dir / f'{protocol_name}.all.{extension}'
