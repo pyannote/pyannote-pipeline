@@ -1,3 +1,9 @@
+### Version 1.2 (2019-06-26)
+
+  - feat: add support for callable preprocessors
+  - setup: switch to pyannote.core 3.0
+  - setup: switch to pyannote.database 2.2
+
 ### Version 1.1.1 (2019-04-09)
 
   - fix: do not raise FileExistsError when output directory exists in `pyannote-pipeline apply`

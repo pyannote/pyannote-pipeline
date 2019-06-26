@@ -165,12 +165,33 @@ class Experiment:
 
         # initialize preprocessors
         preprocessors = {}
-        for key, db_yml in self.config_.get('preprocessors', {}).items():
+        for key, preprocessor in self.config_.get('preprocessors', {}).items():
+
+            # preprocessors:
+            #    key:
+            #       name: package.module.ClassName
+            #       params:
+            #          param1: value1
+            #          param2: value2
+            if isinstance(preprocessor, dict):
+                Klass = get_class_by_name(
+                    preprocessor['name'],
+                    default_module_name='pyannote.pipeline')
+                preprocessors[key] = Klass(**preprocessor.get('params', {}))
+                continue
+
             try:
-                preprocessors[key] = FileFinder(db_yml)
+                # preprocessors:
+                #    key: /path/to/database.yml
+                database_yml = preprocessor
+                preprocessors[key] = FileFinder(preprocessor)
+
             except FileNotFoundError as e:
-                template = db_yml
+                # preprocessors:
+                #    key: /path/to/{uri}.wav
+                template = preprocessor
                 preprocessors[key] = template
+
         self.preprocessors_ = preprocessors
 
         # initialize pipeline
