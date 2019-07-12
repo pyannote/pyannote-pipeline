@@ -451,7 +451,7 @@ class Pipeline:
         """
 
         with open(params_yml, mode='r') as fp:
-            params = yaml.load(fp, Loader=yaml.BaseLoader)
+            params = yaml.load(fp)
         return self.instantiate(params)
 
     def __call__(self, input: PipelineInput) -> PipelineOutput:
