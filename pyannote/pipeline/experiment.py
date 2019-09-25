@@ -355,7 +355,7 @@ class Experiment:
 
                 reference = current_file['annotation']
                 uem = get_annotated(current_file)
-                _ = metric(reference, hypothesis, uem=uem)
+                _ = metric(reference, output, uem=uem)
 
         # "latest" symbolic link
         latest = output_dir.parent / 'latest'
@@ -423,7 +423,7 @@ def main():
         train_dir = train_dir.expanduser().resolve(strict=True)
         experiment = Experiment.from_train_dir(train_dir, training=False)
 
-        output_dir = Path(self.APPLY_DIR.format(
+        output_dir = Path(experiment.APPLY_DIR.format(
             train_dir=train_dir,
             date=experiment.mtime_.strftime('%Y%m%d-%H%M%S')))
 
