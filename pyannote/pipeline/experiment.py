@@ -268,7 +268,9 @@ class Experiment:
             if loss < best_loss:
                 best_params = status['params']
                 best_loss = loss
-                self.pipeline_.dump_params(params_yml, params=best_params)
+                self.pipeline_.dump_params(params_yml,
+                                           params=best_params,
+                                           loss=best_loss)
 
             # progress bar
             desc = f'Best = {100 * best_loss:g}%'

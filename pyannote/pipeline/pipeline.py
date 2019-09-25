@@ -405,7 +405,8 @@ class Pipeline:
         return self
 
     def dump_params(self, params_yml: Path,
-                          params: Optional[dict] = None) -> str:
+                          params: Optional[dict] = None,
+                          loss: Optional[float] = None) -> str:
         """Dump parameters to disk
 
         Parameters
@@ -414,26 +415,31 @@ class Pipeline:
             Path to YAML file.
         params : `dict`, optional
             Nested Parameters. Defaults to pipeline current parameters.
+        loss : `float`, optional
+            Loss value. Defaults to not write loss to file.
 
         Returns
         -------
         content : `str`
             Content written in `param_yml`.
         """
-
         # use instantiated parameters when `params` is not provided
         if params is None:
             params = self.parameters(instantiated=True)
 
+        content = {'params': params}
+        if loss is not None:
+            content['loss'] = loss
+
         # format as valid YAML
-        content = yaml.dump(params, default_flow_style=False)
+        content_yml = yaml.dump(content, default_flow_style=False)
 
         # (safely) dump YAML content
         with FileLock(params_yml.with_suffix('.lock')):
             with open(params_yml, mode='w') as fp:
-                fp.write(content)
+                fp.write(content_yml)
 
-        return content
+        return content_yml
 
     def load_params(self, params_yml: Path) -> 'Pipeline':
         """Instantiate pipeline using parameters from disk
@@ -452,7 +458,7 @@ class Pipeline:
 
         with open(params_yml, mode='r') as fp:
             params = yaml.load(fp, Loader=yaml.SafeLoader)
-        return self.instantiate(params)
+        return self.instantiate(params['params'])
 
     def __call__(self, input: PipelineInput) -> PipelineOutput:
         """Apply pipeline on input and return its output"""
@@ -468,7 +474,7 @@ class Pipeline:
         -------
         metric : `pyannote.metrics.base.BaseMetric`
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def loss(self, input: PipelineInput,
                    output: PipelineOutput) -> float:
@@ -486,7 +492,7 @@ class Pipeline:
         loss : `float`
             Loss value
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @property
     def write_format(self):
