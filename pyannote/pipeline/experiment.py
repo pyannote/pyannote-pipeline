@@ -166,7 +166,7 @@ class Experiment:
         # load configuration file
         config_yml = self.CONFIG_YML.format(experiment_dir=self.experiment_dir)
         with open(config_yml, 'r') as fp:
-            self.config_ = yaml.load(fp)
+            self.config_ = yaml.load(fp, Loader=yaml.SafeLoader)
 
         # initialize preprocessors
         preprocessors = {}
