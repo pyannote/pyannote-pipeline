@@ -32,7 +32,7 @@ Pipeline
 Usage:
   pyannote-pipeline train [options] [(--forever | --iterations=<iterations>)] <experiment_dir> <database.task.protocol>
   pyannote-pipeline best [options] <experiment_dir> <database.task.protocol>
-  pyannote-pipeline apply [options] <params.yml> <database.task.protocol> <output_dir>
+  pyannote-pipeline apply [options] <train_dir> <database.task.protocol>
   pyannote-pipeline -h | --help
   pyannote-pipeline --version
 
@@ -41,7 +41,7 @@ Common options:
   --database=<db.yml>        Path to database configuration file.
                              [default: ~/.pyannote/db.yml]
   --subset=<subset>          Set subset. Defaults to 'development' in "train"
-                             mode, and to all subsets in "apply" mode.
+                             mode, and to 'test' in "apply" mode.
 "train" mode:
   <experiment_dir>           Set experiment root directory. This script expects
                              a configuration file called "config.yml" to live
@@ -55,8 +55,8 @@ Common options:
                              SuccessiveHalvingPruner. Defaults to no pruning.
 
 "apply" mode:
-  <params.yml>               Path to hyper-parameters.
-  <output_dir>               Directory where to store pipeline output.
+  <train_dir>                Path to the directory containing trained hyper-
+                             parameters (i.e. the output of "train" mode).
 
 Configuration file:
     The configuration of each experiment is described in a file called
@@ -99,6 +99,7 @@ Configuration file:
 """
 
 import os
+import os.path
 import yaml
 import numpy as np
 from typing import Optional
@@ -107,9 +108,11 @@ from docopt import docopt
 
 import itertools
 from tqdm import tqdm
+from datetime import datetime
 
 from pyannote.database import FileFinder
 from pyannote.database import get_protocol
+from pyannote.database import get_annotated
 
 from pyannote.core.utils.helper import get_class_by_name
 from .optimizer import Optimizer
@@ -128,16 +131,17 @@ class Experiment:
 
     CONFIG_YML = '{experiment_dir}/config.yml'
     TRAIN_DIR = '{experiment_dir}/train/{protocol}.{subset}'
+    APPLY_DIR = '{train_dir}/apply/{date}'
 
     @classmethod
-    def from_params_yml(cls, params_yml: Path,
-                             training : bool = False) -> 'Experiment':
-        """Load pipeline from 'params.yml' file
+    def from_train_dir(cls, train_dir: Path,
+                            training: bool = False) -> 'Experiment':
+        """Load pipeline from train directory
 
         Parameters
         ----------
-        params_yml : `Path`
-            Path to 'params.yml' file.
+        train_dir : `Path`
+            Path to train directory
         training : `bool`, optional
             Switch to training mode.
 
@@ -146,9 +150,10 @@ class Experiment:
         xp : `Experiment`
             Pipeline experiment.
         """
-
-        experiment_dir = params_yml.parents[2]
+        experiment_dir = train_dir.parents[1]
         xp = cls(experiment_dir, training=training)
+        params_yml = train_dir / 'params.yml'
+        xp.mtime_ = datetime.fromtimestamp(os.path.getmtime(params_yml))
         xp.pipeline_.load_params(params_yml)
         return xp
 
@@ -258,10 +263,12 @@ class Experiment:
 
         for i, status in zip(count, iterations):
 
-            best_loss = status['loss']
-            best_params = status['params']
+            loss = status['loss']
 
-            self.pipeline_.dump_params(params_yml, params=best_params)
+            if loss < best_loss:
+                best_params = status['params']
+                best_loss = loss
+                self.pipeline_.dump_params(params_yml, params=best_params)
 
             # progress bar
             desc = f'Best = {100 * best_loss:g}%'
@@ -307,7 +314,7 @@ class Experiment:
 
     def apply(self, protocol_name: str,
                     output_dir: Path,
-                    subset: Optional[str] = None):
+                    subset: Optional[str] = 'test'):
         """Apply current best pipeline
 
         Parameters
@@ -315,62 +322,49 @@ class Experiment:
         protocol_name : `str`
             Name of pyannote.database protocol to process.
         subset : `str`, optional
-            Subset to process. Defaults processing all subsets.
+            Subset to process. Defaults to 'test'
         """
 
         # file generator
         protocol = get_protocol(protocol_name, progress=True,
                                 preprocessors=self.preprocessors_)
 
-        output_dir.mkdir(parents=True, exist_ok=True)
-        extension = self.pipeline_.write_format
-        if subset is None:
-            path = output_dir / f'{protocol_name}.all.{extension}'
-        else:
-            path = output_dir / f'{protocol_name}.{subset}.{extension}'
-
-        # initialize evaluation metric
+        # load pipeline metric (when available)
         try:
             metric = self.pipeline_.get_metric()
         except NotImplementedError as e:
             metric = None
-            losses = []
 
-        skip_metric = False
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_ext = output_dir / f'{protocol_name}.{subset}.{self.pipeline_.write_format}'
+        with open(output_ext, mode='w') as fp:
 
-        with open(path, mode='w') as fp:
-
-            if subset is None:
-                files = FileFinder.protocol_file_iter(protocol)
-            else:
-                files = getattr(protocol, subset)()
-
-            for current_file in files:
+            for current_file in getattr(protocol, subset)():
 
                 # apply pipeline and dump output to file
                 output = self.pipeline_(current_file)
                 self.pipeline_.write(fp, output)
 
-                if skip_metric:
+                # compute evaluation metric (when possible)
+                if 'annotation' not in current_file:
+                    metric = None
+
+                # compute evaluation metric (when available)
+                if metric is None:
                     continue
 
-                try:
+                reference = current_file['annotation']
+                uem = get_annotated(current_file)
+                _ = metric(reference, hypothesis, uem=uem)
 
-                    if metric is None:
-                        loss = self.pipeline_.loss(current_file, output)
-                        losses.append(loss)
+        # "latest" symbolic link
+        latest = output_dir.parent / 'latest'
+        if latest.exists():
+            latest.unlink()
+        latest.symlink_to(output_dir)
 
-                    else:
-                        from pyannote.database import get_annotated
-                        _ = metric(current_file['annotation'], output,
-                                   uem=get_annotated(current_file))
-
-                except Exception as e:
-                    # this may happen for files with no available groundtruth.
-                    # in this case, we simply do not perform evaluation
-                    skip_metric = True
-
-        if skip_metric:
+        # print pipeline metric (when available)
+        if metric is None:
             msg = (
                 f'For some (possibly good) reason, the output of this '
                 f'pipeline could not be evaluated on {protocol_name}.'
@@ -378,12 +372,9 @@ class Experiment:
             print(msg)
             return
 
-        # report evaluation metric
-        if metric is None:
-            loss = np.mean(losses)
-            print(f'Loss = {loss:g}')
-        else:
-            _ = metric.report(display=True)
+        output_eval = output_dir / f'{protocol_name}.{subset}.eval'
+        with open(output_eval, 'w') as fp:
+            fp.write(str(metric))
 
 def main():
 
@@ -425,11 +416,15 @@ def main():
 
     if arguments['apply']:
 
-        params_yml = Path(arguments['<params.yml>'])
-        params_yml = params_yml.expanduser().resolve(strict=True)
+        if subset is None:
+            subset = 'test'
 
-        output_dir = Path(arguments['<output_dir>'])
-        output_dir = output_dir.expanduser().resolve(strict=False)
+        train_dir = Path(arguments['<train_dir>'])
+        train_dir = train_dir.expanduser().resolve(strict=True)
+        experiment = Experiment.from_train_dir(train_dir, training=False)
 
-        experiment = Experiment.from_params_yml(params_yml, training=False)
+        output_dir = Path(self.APPLY_DIR.format(
+            train_dir=train_dir,
+            date=experiment.mtime_.strftime('%Y%m%d-%H%M%S')))
+
         experiment.apply(protocol_name, output_dir, subset=subset)
