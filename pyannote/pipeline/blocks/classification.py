@@ -70,7 +70,7 @@ class ClosestAssignment(Pipeline):
             warnings.warn(msg)
         self.threshold = Uniform(min_dist, max_dist)
 
-    def __call__(self, X_target, X):
+    def __call__(self, X_target, X, method: Optional[str] = 'mean'):
         """Assign each sample to its closest class (if close enough)
 
         Parameters
@@ -83,12 +83,20 @@ class ClosestAssignment(Pipeline):
                 (m_samples, n_dimensions) target embeddings
         X : `np.ndarray`
             (n_samples, n_dimensions) sample embeddings
+        method : `str`, optional
+            Relevant iff the targets have several samples
+            Used to reduce the distance matrix to a single float
+            Available options (case-insensitive):
+                - 'mean' (Default)
+                - 'median'
+                - 'min'
 
         Returns
         -------
         assignments : `np.ndarray`
             (n_samples, ) sample assignments
         """
+        method=method.lower()
         if self.normalize:
             if isinstance(X_target,np.ndarray):
                 X_target = l2_normalize(X_target)
@@ -103,7 +111,15 @@ class ClosestAssignment(Pipeline):
             distances=[]
             for target in X_target:
                 distance = cdist(target, X, metric=self.metric)
-                distances.append(np.mean(distance))
+                if method=='mean':
+                    distance=np.mean(distance)
+                elif method=='median':
+                    distance=np.median(distance)
+                elif method=='min':
+                    distance=np.min(distance)
+                else:
+                    raise ValueError(f"{method} is an invalid value for method, see \n{help(classifier)}")
+                distances.append(distance)
         targets = np.argmin(distances, axis=0)
 
         # for i, k in enumerate(targets):
