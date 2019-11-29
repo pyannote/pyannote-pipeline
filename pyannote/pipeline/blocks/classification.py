@@ -75,8 +75,12 @@ class ClosestAssignment(Pipeline):
 
         Parameters
         ----------
-        X_target : `np.ndarray`
-            (n_targets, n_dimensions) target embeddings
+        X_target :
+            Either : `np.ndarray`
+                (n_targets, n_dimensions) target embeddings
+            Or : iterable of n_targets
+                all targets are `np.ndarray` which shape can differ:
+                (m_samples, n_dimensions) target embeddings
         X : `np.ndarray`
             (n_samples, n_dimensions) sample embeddings
 
@@ -85,17 +89,26 @@ class ClosestAssignment(Pipeline):
         assignments : `np.ndarray`
             (n_samples, ) sample assignments
         """
-
         if self.normalize:
-            X_target = l2_normalize(X_target)
+            if isinstance(X_target,np.ndarray):
+                X_target = l2_normalize(X_target)
+            else:
+                for i,target in enumerate(X_target):
+                    X_target[i]= l2_normalize(target)
             X = l2_normalize(X)
 
-        distance = cdist(X_target, X, metric=self.metric)
-        targets = np.argmin(distance, axis=0)
+        if isinstance(X_target,np.ndarray):
+            distances = cdist(X_target, X, metric=self.metric)
+        else:
+            distances=[]
+            for target in X_target:
+                distance = cdist(target, X, metric=self.metric)
+                distances.append(np.mean(distance))
+        targets = np.argmin(distances, axis=0)
 
-        for i, k in enumerate(targets):
-            if distance[k, i] > self.threshold:
-                # do not assign
-                targets[i] = -i
+        # for i, k in enumerate(targets):
+        #     if distances[k, i] > self.threshold:
+        #         # do not assign
+        #         targets[i] = -i
 
         return targets
