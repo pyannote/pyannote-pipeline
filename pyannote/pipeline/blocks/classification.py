@@ -120,11 +120,10 @@ class ClosestAssignment(Pipeline):
                 else:
                     raise ValueError(f"{method} is an invalid value for method, see \n{help(classifier)}")
                 distances.append(distance)
-        targets = np.argmin(distances, axis=0)
+        target = np.argmin(distances, axis=0)
 
-        # for i, k in enumerate(targets):
-        #     if distances[k, i] > self.threshold:
-        #         # do not assign
-        #         targets[i] = -i
+        if distances[target] > self.threshold:
+            # do not assign
+            target = -1
 
-        return targets
+        return target
