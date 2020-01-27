@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -108,9 +108,11 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         n_samples, _ = X.shape
 
         if n_samples < 1:
-            raise ValueError(f"There should be at least one sample in `X`, got {n_samples}")
-        elif n_samples==1:
-            #no clustering to be done on one feature
+            msg = 'There should be at least one sample in `X`.'
+            raise ValueError(msg)
+        
+        elif n_samples == 1:
+            # clustering of just one element
             return np.array([1], dtype=int)
 
         if self.normalize:
@@ -174,9 +176,11 @@ class AffinityPropagationClustering(Pipeline):
         n_samples, _ = X.shape
 
         if n_samples < 1:
-            raise ValueError(f"There should be at least one sample in `X`, got {n_samples}")
-        elif n_samples==1:
-            #no clustering to be done on one feature
+            msg = 'There should be at least one sample in `X`.'
+            raise ValueError(msg)
+        
+        elif n_samples == 1:
+            # clustering of just one element
             return np.array([1], dtype=int)
 
         try:
