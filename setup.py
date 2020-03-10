@@ -40,7 +40,7 @@ setup(
         'pyannote.core >= 3.0',
         'pyannote.database >= 2.2',
         'PyYAML >= 3.12',
-        'optuna >= 0.7',
+        'optuna >= 1.2',
         'tqdm >= 4.29.1',
         'docopt >= 0.6.2',
         'filelock >= 3.0.10',
