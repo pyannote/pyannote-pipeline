@@ -260,8 +260,6 @@ class Optimizer:
             ['params'] nested dictionary of optimal parameters
         """
 
-        optuna.logging.get_verbosity()
-
         objective = self.get_objective(inputs)
 
         try:
