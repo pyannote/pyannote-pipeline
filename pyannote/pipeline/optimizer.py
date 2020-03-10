@@ -209,7 +209,8 @@ class Optimizer:
         return objective
 
     def tune(self, inputs: Iterable[PipelineInput],
-                   n_iterations: int=10) -> dict:
+                   n_iterations: int = 10,
+                   warm_start: dict = None) -> dict:
         """Tune pipeline
 
         Parameters
@@ -218,21 +219,46 @@ class Optimizer:
             List of inputs processed by the pipeline at each iteration.
         n_iterations : int, optional
             Number of iterations. Defaults to 10.
+        warm_start : dict, optional
+            Nested dictionary of initial parameters used to bootstrap tuning.
 
         Returns
         -------
-
+        result : dict
+            ['loss']
+            ['params'] nested dictionary of optimal parameters
         """
 
         objective = self.get_objective(inputs)
+
+        if warm_start:
+            flattened_params = self.pipeline._flatten(warm_start)
+            self.study_.enqueue_trial(flattened_params)
+
         self.study_.optimize(objective, n_trials=n_iterations,
                              timeout=None, n_jobs=1)
 
         return {'loss': self.best_loss,
                 'params': self.best_params}
 
-    def tune_iter(self, inputs: Iterable[PipelineInput]) -> \
+    def tune_iter(self, inputs: Iterable[PipelineInput],
+                        warm_start: dict = None) -> \
         Generator[dict, None, None]:
+        """
+
+        Parameters
+        ----------
+        inputs : iterable
+            List of inputs processed by the pipeline at each iteration.
+        warm_start : dict, optional
+            Nested dictionary of initial parameters used to bootstrap tuning.
+
+        Yields
+        ------
+        result : dict
+            ['loss']
+            ['params'] nested dictionary of optimal parameters
+        """
 
         optuna.logging.get_verbosity()
 
@@ -242,6 +268,10 @@ class Optimizer:
             best_loss = self.best_loss
         except ValueError as e:
             best_loss = np.inf
+
+        if warm_start:
+            flattened_params = self.pipeline._flatten(warm_start)
+            self.study_.enqueue_trial(flattened_params)
 
         while True:
 

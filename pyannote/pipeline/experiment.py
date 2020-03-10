@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -53,6 +53,10 @@ Common options:
                              [default: TPESampler].
   --pruner=<pruner>          Choose pruner between MedianPruner or
                              SuccessiveHalvingPruner. Defaults to no pruning.
+  --pretrained=<train_dir>   Use parameters in existing training directory to
+                             bootstrap the optimization process. In practice,
+                             this will simply run a first trial with this set
+                             of parameters.
 
 "apply" mode:
   <train_dir>                Path to the directory containing trained hyper-
@@ -212,6 +216,7 @@ class Experiment:
 
     def train(self, protocol_name: str,
                     subset: Optional[str] = 'development',
+                    pretrained: Optional[Path] = None,
                     n_iterations: Optional[int] = 1,
                     sampler: Optional[str] = None,
                     pruner: Optional[str] = None):
@@ -223,6 +228,10 @@ class Experiment:
             Name of pyannote.database protocol to use.
         subset : `str`, optional
             Use this subset for training. Defaults to 'development'.
+        pretrained : Path, optional
+            Use parameters in "pretrained" training directory to bootstrap the
+            optimization process. In practice this will simply run a first trial
+            with this set of parameters.
         n_iterations : `int`, optional
             Number of iterations. Defaults to 1.
         sampler : `str`, optional
@@ -252,8 +261,17 @@ class Experiment:
         progress_bar.set_description('Waiting for first iteration to complete')
         progress_bar.update(0)
 
+        if pretrained:
+            pre_params_yml = pretrained / 'params.yml'
+            with open(pre_params_yml, mode='r') as fp:
+                pre_params = yaml.load(fp, Loader=yaml.SafeLoader)
+            warm_start = pre_params['params']
+
+        else:
+            warm_start = None
+
         inputs = list(getattr(protocol, subset)())
-        iterations = optimizer.tune_iter(inputs)
+        iterations = optimizer.tune_iter(inputs, warm_start=warm_start)
 
         try:
             best_loss = optimizer.best_loss
@@ -398,12 +416,16 @@ def main():
         sampler = arguments['--sampler']
         pruner = arguments['--pruner']
 
+        pretrained = arguments['--pretrained']
+        if pretrained:
+            pretrained = Path(pretrained).expanduser().resolve(strict=True)
+
         experiment_dir = Path(arguments['<experiment_dir>'])
         experiment_dir = experiment_dir.expanduser().resolve(strict=True)
 
         experiment = Experiment(experiment_dir, training=True)
         experiment.train(protocol_name, subset=subset, n_iterations=iterations,
-                         sampler=sampler, pruner=pruner)
+                         pretrained=pretrained, sampler=sampler, pruner=pruner)
 
     if arguments['best']:
 
