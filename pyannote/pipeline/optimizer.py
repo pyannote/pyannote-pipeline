@@ -61,13 +61,17 @@ class Optimizer:
     pruner : `str`, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner". Defaults to no pruning.
+    direction : {"minimize", "maximize"}, optional
+        Direction of optimization. Use "minimize" for minimization and
+        "maximize" for maximization. Defaults to "minimize".
     """
 
     def __init__(self, pipeline: Pipeline,
                        db: Optional[Path] = None,
                        study_name: Optional[str] = None,
                        sampler: Optional[str] = None,
-                       pruner: Optional[str] = None):
+                       pruner: Optional[str] = None,
+                       direction: str = "minimize"):
 
         self.pipeline = pipeline
 
@@ -89,6 +93,8 @@ class Optimizer:
                 msg = '`pruner` must be one of "MedianPruner" or "SuccessiveHalvingPruner"'
                 raise ValueError(msg)
 
+        self.direction = direction
+
         # generate name of study based on pipeline hash
         # Klass = pipeline.__class__
         # study_name = f'{Klass.__module__}.{Klass.__name__}[{hash(pipeline)}]'
@@ -99,7 +105,7 @@ class Optimizer:
             storage=f'sqlite:///{self.db}',
             sampler=sampler,
             pruner=pruner,
-            direction='minimize')
+            direction=self.direction)
 
     @property
     def best_loss(self) -> float:
