@@ -76,6 +76,10 @@ class Optimizer:
         self.pipeline = pipeline
 
         self.db = db
+        if db is None:
+            self.storage_ = None
+        else:
+            self.storage_ = f'sqlite:///{self.db}'
         self.study_name = study_name
 
         self.sampler = "TPESampler" if sampler is None else sampler
@@ -102,7 +106,7 @@ class Optimizer:
         self.study_ = optuna.create_study(
             study_name=self.study_name,
             load_if_exists=True,
-            storage=f'sqlite:///{self.db}',
+            storage=self.storage_,
             sampler=sampler,
             pruner=pruner,
             direction=self.direction)
