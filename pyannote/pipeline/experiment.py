@@ -192,8 +192,7 @@ class Experiment:
             try:
                 # preprocessors:
                 #    key: /path/to/database.yml
-                database_yml = preprocessor
-                preprocessors[key] = FileFinder(preprocessor)
+                preprocessors[key] = FileFinder(database_yml=preprocessor)
 
             except FileNotFoundError as e:
                 # preprocessors:

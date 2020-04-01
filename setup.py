@@ -38,7 +38,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'pyannote.core >= 3.0',
-        'pyannote.database >= 2.2',
+        'pyannote.database >= 3.0',
         'PyYAML >= 3.12',
         'optuna >= 1.2',
         'tqdm >= 4.29.1',
