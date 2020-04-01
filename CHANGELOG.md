@@ -1,3 +1,9 @@
+### Version 1.5 (2020-04-01)
+
+  - feat: add "direction" parameter to Optimizer
+  - fix: fix support for in-memory optimization (when db is None)
+  - setup: switch to pyannote.database 3.0
+
 ### Version 1.4 (2020-03-10)
 
   - feat: add option to bootstrap optimization with pretrained pipeline
