@@ -99,10 +99,10 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         X : `np.ndarray`
             (n_samples, n_dimensions) feature vectors.
         cannot_link : list of pairs
-                Pairs of indices of observations that cannot be linked. For instance,
-                [(1, 2), (5, 6)] means that first and second observations cannot end up
-                in the same cluster, as well as 5th and 6th obversations.
-                Defaults to no constraints (i.e. None)
+            Pairs of indices of observations that cannot be linked. For instance,
+            [(1, 2), (5, 6)] means that first and second observations cannot end up
+            in the same cluster, as well as 5th and 6th obversations.
+            Defaults to no constraints (i.e. None)
         Returns
         -------
         y : `np.ndarray`
@@ -162,20 +162,26 @@ class AffinityPropagationClustering(Pipeline):
             damping=self.damping, preference=self.preference,
             affinity='precomputed', max_iter=200, convergence_iter=50)
 
-    def __call__(self, X: np.ndarray) -> np.ndarray:
+    def __call__(self, X: np.ndarray, cannot_link: List[Tuple[int, int]] = None) -> np.ndarray:
         """Apply clustering based on affinity propagation
 
         Parameters
         ----------
         X : `np.ndarray`
             (n_samples, n_dimensions) feature vectors.
+        cannot_link : list of pairs
+            Pairs of indices of observations that cannot be linked.
+            This is currently not implemented and will raise an error if not None.
 
         Returns
         -------
         y : `np.ndarray`
             (n_samples, ) cluster assignment (between 1 and n_clusters).
         """
-
+        if cannot_link is not None:
+            msg = (f'cannot_link constraints are not implemented for '
+                   f'{self.__class__.__name__}')
+            raise NotImplementedError(msg)
         n_samples, _ = X.shape
 
         if n_samples < 1:
