@@ -28,7 +28,7 @@
 
 import warnings
 import numpy as np
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from scipy.cluster.hierarchy import fcluster
 from pyannote.core.utils.hierarchy import linkage, fcluster_auto
@@ -91,14 +91,18 @@ class HierarchicalAgglomerativeClustering(Pipeline):
             self.threshold = Uniform(min_dist, max_dist)
 
 
-    def __call__(self, X: np.ndarray) -> np.ndarray:
+    def __call__(self, X: np.ndarray, cannot_link: List[Tuple[int, int]] = None) -> np.ndarray:
         """Apply hierarchical agglomerative clustering
 
         Parameters
         ----------
         X : `np.ndarray`
             (n_samples, n_dimensions) feature vectors.
-
+        cannot_link : list of pairs
+                Pairs of indices of observations that cannot be linked. For instance,
+                [(1, 2), (5, 6)] means that first and second observations cannot end up
+                in the same cluster, as well as 5th and 6th obversations.
+                Defaults to no constraints (i.e. None)
         Returns
         -------
         y : `np.ndarray`
@@ -119,10 +123,9 @@ class HierarchicalAgglomerativeClustering(Pipeline):
             X = l2_normalize(X)
 
         # compute agglomerative clustering all the way up to one cluster
-        Z = linkage(X, method=self.method, metric=self.metric)
+        Z = linkage(X, method=self.method, metric=self.metric, cannot_link=cannot_link)
 
         # obtain flat clusters
-
         if self.use_threshold:
             return fcluster(Z, self.threshold, criterion='distance')
 
