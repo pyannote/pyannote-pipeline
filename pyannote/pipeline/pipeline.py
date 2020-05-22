@@ -394,6 +394,9 @@ class Pipeline:
 
             # instantiate parameter value
             if name in self._parameters:
+                # skip Frozen parameters
+                if isinstance(getattr(self, name), Frozen):
+                    continue
                 setattr(self, name, value)
                 continue
 
