@@ -37,6 +37,7 @@ from .typing import PipelineOutput
 
 from filelock import FileLock
 import yaml
+from warnings import warn
 
 from pyannote.core import Timeline
 from pyannote.core import Annotation
@@ -395,7 +396,11 @@ class Pipeline:
             # instantiate parameter value
             if name in self._parameters:
                 # skip Frozen parameters
-                if isinstance(getattr(self, name), Frozen):
+                param = getattr(self, name)
+                if isinstance(param, Frozen):
+                    msg = (f"using frozen value {param.value:g} instead of provided " 
+                           f"value {value:g} for parameter {name} ")
+                    warn(msg)
                     continue
                 setattr(self, name, value)
                 continue
