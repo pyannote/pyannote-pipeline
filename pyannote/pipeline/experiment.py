@@ -258,7 +258,6 @@ class Experiment:
 
         progress_bar = tqdm(unit='trial')
         progress_bar.set_description('First trial in progress')
-        progress_bar.set_description(desc=desc)
         progress_bar.update(0)
 
         if pretrained:
