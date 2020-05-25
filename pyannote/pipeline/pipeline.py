@@ -397,7 +397,7 @@ class Pipeline:
             if name in self._parameters:
                 # skip Frozen parameters
                 param = getattr(self, name)
-                if isinstance(param, Frozen):
+                if isinstance(param, Frozen) and param.value != value:
                     msg = (f"using frozen value {param.value:g} instead of provided " 
                            f"value {value:g} for parameter {name} ")
                     warn(msg)
