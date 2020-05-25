@@ -290,7 +290,7 @@ class Experiment:
                                            loss=best_loss)
 
             # progress bar
-            desc = f'Best trial: {100 * best_loss:g}% : Last trial: {100 * loss:g}%'
+            desc = f'Best trial: {100 * best_loss:g}%'
             progress_bar.set_description(desc=desc)
             progress_bar.update(1)
 
