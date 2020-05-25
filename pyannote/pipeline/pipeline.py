@@ -395,13 +395,13 @@ class Pipeline:
 
             # instantiate parameter value
             if name in self._parameters:
-                # skip Frozen parameters
                 param = getattr(self, name)
+                # Frozen parameters overwrite provided values
                 if isinstance(param, Frozen) and param.value != value:
                     msg = (f"using frozen value {param.value:g} instead of provided " 
                            f"value {value:g} for parameter {name} ")
                     warn(msg)
-                    continue
+                    value = param.value
                 setattr(self, name, value)
                 continue
 
