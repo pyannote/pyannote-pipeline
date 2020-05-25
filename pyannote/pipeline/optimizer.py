@@ -176,8 +176,7 @@ class Optimizer:
             pipeline = self.pipeline.instantiate(
                 self.pipeline.parameters(trial=trial))
 
-            progress_bar = tqdm(total=len(inputs), leave=False)
-            progress_bar = f"Current trial"
+            progress_bar = tqdm(total=len(inputs), desc="Current trial", leave=False)
             progress_bar.update(0)
 
             # accumulate loss for each input
