@@ -256,8 +256,9 @@ class Experiment:
 
         params_yml = train_dir / 'params.yml'
 
-        progress_bar = tqdm(unit='iteration')
-        progress_bar.set_description('Waiting for first iteration to complete')
+        progress_bar = tqdm(unit='trial')
+        progress_bar.set_description('First trial in progress')
+        progress_bar.set_description(desc=desc)
         progress_bar.update(0)
 
         if pretrained:
@@ -290,7 +291,7 @@ class Experiment:
                                            loss=best_loss)
 
             # progress bar
-            desc = f'Best = {100 * best_loss:g}%'
+            desc = f'Best trial: {100 * best_loss:g}% : Last trial: {100 * loss:g}'
             progress_bar.set_description(desc=desc)
             progress_bar.update(1)
 
