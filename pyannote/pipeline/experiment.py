@@ -244,8 +244,7 @@ class Experiment:
             subset=subset))
         train_dir.mkdir(parents=True, exist_ok=True)
 
-        protocol = get_protocol(protocol_name, progress=False,
-                                preprocessors=self.preprocessors_)
+        protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         study_name = "default"
         optimizer = Optimizer(self.pipeline_,
@@ -345,8 +344,7 @@ class Experiment:
         """
 
         # file generator
-        protocol = get_protocol(protocol_name, progress=True,
-                                preprocessors=self.preprocessors_)
+        protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         # load pipeline metric (when available)
         try:
