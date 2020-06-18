@@ -244,8 +244,7 @@ class Experiment:
             subset=subset))
         train_dir.mkdir(parents=True, exist_ok=True)
 
-        protocol = get_protocol(protocol_name, progress=False,
-                                preprocessors=self.preprocessors_)
+        protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         study_name = "default"
         optimizer = Optimizer(self.pipeline_,
@@ -256,8 +255,8 @@ class Experiment:
 
         params_yml = train_dir / 'params.yml'
 
-        progress_bar = tqdm(unit='iteration')
-        progress_bar.set_description('Waiting for first iteration to complete')
+        progress_bar = tqdm(unit='trial', position=0, leave=True)
+        progress_bar.set_description('First trial in progress')
         progress_bar.update(0)
 
         if pretrained:
@@ -290,7 +289,7 @@ class Experiment:
                                            loss=best_loss)
 
             # progress bar
-            desc = f'Best = {100 * best_loss:g}%'
+            desc = f'Best trial: {100 * best_loss:g}%'
             progress_bar.set_description(desc=desc)
             progress_bar.update(1)
 
@@ -345,8 +344,7 @@ class Experiment:
         """
 
         # file generator
-        protocol = get_protocol(protocol_name, progress=True,
-                                preprocessors=self.preprocessors_)
+        protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         # load pipeline metric (when available)
         try:

@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,10 +37,10 @@ setup(
     namespace_packages=['pyannote'],
     packages=find_packages(),
     install_requires=[
-        'pyannote.core >= 3.0',
-        'pyannote.database >= 3.0',
+        'pyannote.core >= 4.0',
+        'pyannote.database >= 4.0',
         'PyYAML >= 3.12',
-        'optuna >= 1.2',
+        'optuna >= 1.4',
         'tqdm >= 4.29.1',
         'docopt >= 0.6.2',
         'filelock >= 3.0.10',
@@ -68,6 +68,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering"
     ],
 )

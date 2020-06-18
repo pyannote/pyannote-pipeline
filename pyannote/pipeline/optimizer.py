@@ -31,6 +31,7 @@ from .typing import PipelineInput
 
 import time
 import numpy as np
+from tqdm import tqdm
 
 from pathlib import Path
 from .pipeline import Pipeline
@@ -175,6 +176,9 @@ class Optimizer:
             pipeline = self.pipeline.instantiate(
                 self.pipeline.parameters(trial=trial))
 
+            progress_bar = tqdm(total=len(inputs), desc="Current trial", leave=False, position=1)
+            progress_bar.update(0)
+
             # accumulate loss for each input
             for i, input in enumerate(inputs):
 
@@ -202,6 +206,8 @@ class Optimizer:
 
                 after_evaluation = time.time()
                 evaluation_time.append(after_evaluation - before_evaluation)
+
+                progress_bar.update(1)
 
                 if self.pruner is None:
                     continue
