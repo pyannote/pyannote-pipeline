@@ -1,3 +1,11 @@
+
+### Version 1.5.1 (2020-06-18)
+
+  - feat: add second progress bar to display trial internal progress
+  - fix: skip Frozen parameters in pipeline.instantiate (@PaulLerner)
+  - fix: switch to pyannote.database 4.0+ (@PaulLerner)
+  - setup: switch to optuna 1.4+ and pyannote.core 4.0+
+
 ### Version 1.5 (2020-04-01)
 
   - feat: add "direction" parameter to Optimizer
