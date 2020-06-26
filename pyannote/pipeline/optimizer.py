@@ -26,7 +26,7 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import Iterable, Optional, Callable, Generator
+from typing import Iterable, Optional, Callable, Generator, Union, Dict
 from .typing import PipelineInput
 
 import time
@@ -67,12 +67,15 @@ class Optimizer:
         "maximize" for maximization. Defaults to "minimize".
     """
 
-    def __init__(self, pipeline: Pipeline,
-                       db: Optional[Path] = None,
-                       study_name: Optional[str] = None,
-                       sampler: Optional[str] = None,
-                       pruner: Optional[str] = None,
-                       direction: str = "minimize"):
+    def __init__(
+        self,
+        pipeline: Pipeline,
+        db: Optional[Path] = None,
+        study_name: Optional[str] = None,
+        sampler: Optional[str] = None,
+        pruner: Optional[str] = None,
+        direction: str = "minimize",
+    ):
 
         self.pipeline = pipeline
 
@@ -80,7 +83,7 @@ class Optimizer:
         if db is None:
             self.storage_ = None
         else:
-            self.storage_ = f'sqlite:///{self.db}'
+            self.storage_ = f"sqlite:///{self.db}"
         self.study_name = study_name
 
         self.sampler = "TPESampler" if sampler is None else sampler
@@ -110,7 +113,8 @@ class Optimizer:
             storage=self.storage_,
             sampler=sampler,
             pruner=pruner,
-            direction=self.direction)
+            direction=self.direction,
+        )
 
     @property
     def best_loss(self) -> float:
@@ -128,8 +132,9 @@ class Optimizer:
         """Return pipeline instantiated with best parameters so far"""
         return self.pipeline.instantiate(self.best_params)
 
-    def get_objective(self, inputs: Iterable[PipelineInput]) -> \
-        Callable[[Trial], float]:
+    def get_objective(
+        self, inputs: Iterable[PipelineInput], show_progress: Union[bool, Dict] = False,
+    ) -> Callable[[Trial], float]:
         """
         Create objective function used by optuna
 
@@ -137,6 +142,9 @@ class Optimizer:
         ----------
         inputs : `iterable`
             List of inputs to process.
+        show_progress : bool or dict
+            Show within-trial progress bar using tqdm progress bar.
+            Can also be a **kwarg dict passed to tqdm.
 
         Returns
         -------
@@ -147,6 +155,9 @@ class Optimizer:
         # this is needed for `inputs` that can be only iterated once.
         inputs = list(inputs)
         n_inputs = len(inputs)
+
+        if show_progress == True:
+            show_progress = {"desc": "Current trial", "leave": False, "position": 1}
 
         def objective(trial: Trial) -> float:
             """Compute objective value
@@ -173,11 +184,11 @@ class Optimizer:
             evaluation_time = []
 
             # instantiate pipeline with value suggested in current trial
-            pipeline = self.pipeline.instantiate(
-                self.pipeline.parameters(trial=trial))
+            pipeline = self.pipeline.instantiate(self.pipeline.parameters(trial=trial))
 
-            progress_bar = tqdm(total=len(inputs), desc="Current trial", leave=False, position=1)
-            progress_bar.update(0)
+            if show_progress != False:
+                progress_bar = tqdm(total=len(inputs), **show_progress)
+                progress_bar.update(0)
 
             # accumulate loss for each input
             for i, input in enumerate(inputs):
@@ -201,32 +212,39 @@ class Optimizer:
                 # by a `pyannote.database` protocol
                 else:
                     from pyannote.database import get_annotated
-                    _ = metric(input['annotation'], output,
-                               uem=get_annotated(input))
+
+                    _ = metric(input["annotation"], output, uem=get_annotated(input))
 
                 after_evaluation = time.time()
                 evaluation_time.append(after_evaluation - before_evaluation)
 
-                progress_bar.update(1)
+                if show_progress != False:
+                    progress_bar.update(1)
 
                 if self.pruner is None:
                     continue
 
-                trial.report(
-                    np.mean(losses) if metric is None else abs(metric), i)
+                trial.report(np.mean(losses) if metric is None else abs(metric), i)
                 if trial.should_prune(i):
                     raise optuna.structs.TrialPruned()
 
-            trial.set_user_attr('processing_time', sum(processing_time))
-            trial.set_user_attr('evaluation_time', sum(evaluation_time))
+            if show_progress != False:
+                progress_bar.close()
+
+            trial.set_user_attr("processing_time", sum(processing_time))
+            trial.set_user_attr("evaluation_time", sum(evaluation_time))
 
             return np.mean(losses) if metric is None else abs(metric)
 
         return objective
 
-    def tune(self, inputs: Iterable[PipelineInput],
-                   n_iterations: int = 10,
-                   warm_start: dict = None) -> dict:
+    def tune(
+        self,
+        inputs: Iterable[PipelineInput],
+        n_iterations: int = 10,
+        warm_start: dict = None,
+        show_progress: Union[bool, Dict] = True,
+    ) -> dict:
         """Tune pipeline
 
         Parameters
@@ -245,21 +263,25 @@ class Optimizer:
             ['params'] nested dictionary of optimal parameters
         """
 
-        objective = self.get_objective(inputs)
+        objective = self.get_objective(inputs, show_progress=show_progress)
 
         if warm_start:
             flattened_params = self.pipeline._flatten(warm_start)
-            self.study_.enqueue_trial(flattened_params)
 
-        self.study_.optimize(objective, n_trials=n_iterations,
-                             timeout=None, n_jobs=1)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=ExperimentalWarning)
+                self.study_.enqueue_trial(flattened_params)
 
-        return {'loss': self.best_loss,
-                'params': self.best_params}
+        self.study_.optimize(objective, n_trials=n_iterations, timeout=None, n_jobs=1)
 
-    def tune_iter(self, inputs: Iterable[PipelineInput],
-                        warm_start: dict = None) -> \
-        Generator[dict, None, None]:
+        return {"loss": self.best_loss, "params": self.best_params}
+
+    def tune_iter(
+        self,
+        inputs: Iterable[PipelineInput],
+        warm_start: dict = None,
+        show_progress: Union[bool, Dict] = True,
+    ) -> Generator[dict, None, None]:
         """
 
         Parameters
@@ -276,7 +298,7 @@ class Optimizer:
             ['params'] nested dictionary of optimal parameters
         """
 
-        objective = self.get_objective(inputs)
+        objective = self.get_objective(inputs, show_progress=show_progress)
 
         try:
             best_loss = self.best_loss
@@ -290,8 +312,7 @@ class Optimizer:
         while True:
 
             # one trial at a time
-            self.study_.optimize(objective, n_trials=1,
-                                 timeout=None, n_jobs=1)
+            self.study_.optimize(objective, n_trials=1, timeout=None, n_jobs=1)
 
             try:
                 best_loss = self.best_loss
@@ -299,4 +320,4 @@ class Optimizer:
             except ValueError as e:
                 continue
 
-            yield {'loss': best_loss, 'params': best_params}
+            yield {"loss": best_loss, "params": best_params}
