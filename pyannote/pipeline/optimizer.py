@@ -40,7 +40,10 @@ from optuna.trial import Trial, FixedTrial
 import optuna.samplers
 import optuna.pruners
 
+import warnings
+from optuna.exceptions import ExperimentalWarning
 import optuna.logging
+
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
@@ -307,7 +310,9 @@ class Optimizer:
 
         if warm_start:
             flattened_params = self.pipeline._flatten(warm_start)
-            self.study_.enqueue_trial(flattened_params)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=ExperimentalWarning)
+                self.study_.enqueue_trial(flattened_params)
 
         while True:
 
