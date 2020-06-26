@@ -133,13 +133,12 @@ class Experiment:
         Switch to training mode
     """
 
-    CONFIG_YML = '{experiment_dir}/config.yml'
-    TRAIN_DIR = '{experiment_dir}/train/{protocol}.{subset}'
-    APPLY_DIR = '{train_dir}/apply/{date}'
+    CONFIG_YML = "{experiment_dir}/config.yml"
+    TRAIN_DIR = "{experiment_dir}/train/{protocol}.{subset}"
+    APPLY_DIR = "{train_dir}/apply/{date}"
 
     @classmethod
-    def from_train_dir(cls, train_dir: Path,
-                            training: bool = False) -> 'Experiment':
+    def from_train_dir(cls, train_dir: Path, training: bool = False) -> "Experiment":
         """Load pipeline from train directory
 
         Parameters
@@ -156,7 +155,7 @@ class Experiment:
         """
         experiment_dir = train_dir.parents[1]
         xp = cls(experiment_dir, training=training)
-        params_yml = train_dir / 'params.yml'
+        params_yml = train_dir / "params.yml"
         xp.mtime_ = datetime.fromtimestamp(os.path.getmtime(params_yml))
         xp.pipeline_.load_params(params_yml)
         return xp
@@ -169,12 +168,12 @@ class Experiment:
 
         # load configuration file
         config_yml = self.CONFIG_YML.format(experiment_dir=self.experiment_dir)
-        with open(config_yml, 'r') as fp:
+        with open(config_yml, "r") as fp:
             self.config_ = yaml.load(fp, Loader=yaml.SafeLoader)
 
         # initialize preprocessors
         preprocessors = {}
-        for key, preprocessor in self.config_.get('preprocessors', {}).items():
+        for key, preprocessor in self.config_.get("preprocessors", {}).items():
 
             # preprocessors:
             #    key:
@@ -184,9 +183,9 @@ class Experiment:
             #          param2: value2
             if isinstance(preprocessor, dict):
                 Klass = get_class_by_name(
-                    preprocessor['name'],
-                    default_module_name='pyannote.pipeline')
-                preprocessors[key] = Klass(**preprocessor.get('params', {}))
+                    preprocessor["name"], default_module_name="pyannote.pipeline"
+                )
+                preprocessors[key] = Klass(**preprocessor.get("params", {}))
                 continue
 
             try:
@@ -203,22 +202,26 @@ class Experiment:
         self.preprocessors_ = preprocessors
 
         # initialize pipeline
-        pipeline_name = self.config_['pipeline']['name']
+        pipeline_name = self.config_["pipeline"]["name"]
         Klass = get_class_by_name(
-            pipeline_name, default_module_name='pyannote.pipeline.blocks')
-        self.pipeline_ = Klass(**self.config_['pipeline'].get('params', {}))
+            pipeline_name, default_module_name="pyannote.pipeline.blocks"
+        )
+        self.pipeline_ = Klass(**self.config_["pipeline"].get("params", {}))
 
         # freeze  parameters
-        if 'freeze' in self.config_:
-            params = self.config_['freeze']
+        if "freeze" in self.config_:
+            params = self.config_["freeze"]
             self.pipeline_.freeze(params)
 
-    def train(self, protocol_name: str,
-                    subset: Optional[str] = 'development',
-                    pretrained: Optional[Path] = None,
-                    n_iterations: Optional[int] = 1,
-                    sampler: Optional[str] = None,
-                    pruner: Optional[str] = None):
+    def train(
+        self,
+        protocol_name: str,
+        subset: Optional[str] = "development",
+        pretrained: Optional[Path] = None,
+        n_iterations: int = 1,
+        sampler: Optional[str] = None,
+        pruner: Optional[str] = None,
+    ):
         """Train pipeline
 
         Parameters
@@ -238,38 +241,45 @@ class Experiment:
         pruner : `str`, optional
             Choose between MedianPruner or SuccessiveHalvingPruner.
         """
-        train_dir = Path(self.TRAIN_DIR.format(
-            experiment_dir=self.experiment_dir,
-            protocol=protocol_name,
-            subset=subset))
+        train_dir = Path(
+            self.TRAIN_DIR.format(
+                experiment_dir=self.experiment_dir,
+                protocol=protocol_name,
+                subset=subset,
+            )
+        )
         train_dir.mkdir(parents=True, exist_ok=True)
 
         protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         study_name = "default"
-        optimizer = Optimizer(self.pipeline_,
-                              db=train_dir / 'iterations.db',
-                              study_name=study_name,
-                              sampler=sampler,
-                              pruner=pruner)
+        optimizer = Optimizer(
+            self.pipeline_,
+            db=train_dir / "iterations.db",
+            study_name=study_name,
+            sampler=sampler,
+            pruner=pruner,
+        )
 
-        params_yml = train_dir / 'params.yml'
+        params_yml = train_dir / "params.yml"
 
-        progress_bar = tqdm(unit='trial', position=0, leave=True)
-        progress_bar.set_description('First trial in progress')
+        progress_bar = tqdm(unit="trial", position=0, leave=True)
+        progress_bar.set_description("First trial in progress")
         progress_bar.update(0)
 
         if pretrained:
-            pre_params_yml = pretrained / 'params.yml'
-            with open(pre_params_yml, mode='r') as fp:
+            pre_params_yml = pretrained / "params.yml"
+            with open(pre_params_yml, mode="r") as fp:
                 pre_params = yaml.load(fp, Loader=yaml.SafeLoader)
-            warm_start = pre_params['params']
+            warm_start = pre_params["params"]
 
         else:
             warm_start = None
 
         inputs = list(getattr(protocol, subset)())
-        iterations = optimizer.tune_iter(inputs, warm_start=warm_start)
+        iterations = optimizer.tune_iter(
+            inputs, warm_start=warm_start, show_progress=True
+        )
 
         try:
             best_loss = optimizer.best_loss
@@ -279,22 +289,21 @@ class Experiment:
 
         for i, status in zip(count, iterations):
 
-            loss = status['loss']
+            loss = status["loss"]
 
             if loss < best_loss:
-                best_params = status['params']
+                best_params = status["params"]
                 best_loss = loss
-                self.pipeline_.dump_params(params_yml,
-                                           params=best_params,
-                                           loss=best_loss)
+                self.pipeline_.dump_params(
+                    params_yml, params=best_params, loss=best_loss
+                )
 
             # progress bar
-            desc = f'Best trial: {100 * best_loss:g}%'
+            desc = f"Best trial: {100 * best_loss:g}%"
             progress_bar.set_description(desc=desc)
             progress_bar.update(1)
 
-    def best(self, protocol_name: str,
-                   subset: str = 'development'):
+    def best(self, protocol_name: str, subset: str = "development"):
         """Print current best pipeline
 
         Parameters
@@ -305,34 +314,35 @@ class Experiment:
             Subset used for training. Defaults to 'development'.
         """
 
-        train_dir = Path(self.TRAIN_DIR.format(
-            experiment_dir=self.experiment_dir,
-            protocol=protocol_name,
-            subset=subset))
+        train_dir = Path(
+            self.TRAIN_DIR.format(
+                experiment_dir=self.experiment_dir,
+                protocol=protocol_name,
+                subset=subset,
+            )
+        )
 
         study_name = "default"
-        optimizer = Optimizer(self.pipeline_,
-                              db=train_dir / 'iterations.db',
-                              study_name=study_name)
+        optimizer = Optimizer(
+            self.pipeline_, db=train_dir / "iterations.db", study_name=study_name
+        )
 
         try:
             best_loss = optimizer.best_loss
         except ValueError as e:
-            print('Still waiting for at least one iteration to succeed.')
+            print("Still waiting for at least one iteration to succeed.")
             return
 
         best_params = optimizer.best_params
 
-        print(
-            f'Loss = {100 * best_loss:g}% '
-            f'with the following hyper-parameters:')
+        print(f"Loss = {100 * best_loss:g}% with the following hyper-parameters:")
 
         content = yaml.dump(best_params, default_flow_style=False)
         print(content)
 
-    def apply(self, protocol_name: str,
-                    output_dir: Path,
-                    subset: Optional[str] = 'test'):
+    def apply(
+        self, protocol_name: str, output_dir: Path, subset: Optional[str] = "test"
+    ):
         """Apply current best pipeline
 
         Parameters
@@ -353,8 +363,10 @@ class Experiment:
             metric = None
 
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_ext = output_dir / f'{protocol_name}.{subset}.{self.pipeline_.write_format}'
-        with open(output_ext, mode='w') as fp:
+        output_ext = (
+            output_dir / f"{protocol_name}.{subset}.{self.pipeline_.write_format}"
+        )
+        with open(output_ext, mode="w") as fp:
 
             for current_file in getattr(protocol, subset)():
 
@@ -363,19 +375,19 @@ class Experiment:
                 self.pipeline_.write(fp, output)
 
                 # compute evaluation metric (when possible)
-                if 'annotation' not in current_file:
+                if "annotation" not in current_file:
                     metric = None
 
                 # compute evaluation metric (when available)
                 if metric is None:
                     continue
 
-                reference = current_file['annotation']
+                reference = current_file["annotation"]
                 uem = get_annotated(current_file)
                 _ = metric(reference, output, uem=uem)
 
         # "latest" symbolic link
-        latest = output_dir.parent / 'latest'
+        latest = output_dir.parent / "latest"
         if latest.exists():
             latest.unlink()
         latest.symlink_to(output_dir)
@@ -383,69 +395,78 @@ class Experiment:
         # print pipeline metric (when available)
         if metric is None:
             msg = (
-                f'For some (possibly good) reason, the output of this '
-                f'pipeline could not be evaluated on {protocol_name}.'
+                f"For some (possibly good) reason, the output of this "
+                f"pipeline could not be evaluated on {protocol_name}."
             )
             print(msg)
             return
 
-        output_eval = output_dir / f'{protocol_name}.{subset}.eval'
-        with open(output_eval, 'w') as fp:
+        output_eval = output_dir / f"{protocol_name}.{subset}.eval"
+        with open(output_eval, "w") as fp:
             fp.write(str(metric))
+
 
 def main():
 
-    arguments = docopt(__doc__, version='Tunable pipelines')
+    arguments = docopt(__doc__, version="Tunable pipelines")
 
-    protocol_name = arguments['<database.task.protocol>']
-    subset = arguments['--subset']
+    protocol_name = arguments["<database.task.protocol>"]
+    subset = arguments["--subset"]
 
-    if arguments['train']:
+    if arguments["train"]:
 
         if subset is None:
-            subset = 'development'
+            subset = "development"
 
-        if arguments['--forever']:
+        if arguments["--forever"]:
             iterations = -1
         else:
-            iterations = int(arguments['--iterations'])
+            iterations = int(arguments["--iterations"])
 
-        sampler = arguments['--sampler']
-        pruner = arguments['--pruner']
+        sampler = arguments["--sampler"]
+        pruner = arguments["--pruner"]
 
-        pretrained = arguments['--pretrained']
+        pretrained = arguments["--pretrained"]
         if pretrained:
             pretrained = Path(pretrained).expanduser().resolve(strict=True)
 
-        experiment_dir = Path(arguments['<experiment_dir>'])
+        experiment_dir = Path(arguments["<experiment_dir>"])
         experiment_dir = experiment_dir.expanduser().resolve(strict=True)
 
         experiment = Experiment(experiment_dir, training=True)
-        experiment.train(protocol_name, subset=subset, n_iterations=iterations,
-                         pretrained=pretrained, sampler=sampler, pruner=pruner)
+        experiment.train(
+            protocol_name,
+            subset=subset,
+            n_iterations=iterations,
+            pretrained=pretrained,
+            sampler=sampler,
+            pruner=pruner,
+        )
 
-    if arguments['best']:
+    if arguments["best"]:
 
         if subset is None:
-            subset = 'development'
+            subset = "development"
 
-        experiment_dir = Path(arguments['<experiment_dir>'])
+        experiment_dir = Path(arguments["<experiment_dir>"])
         experiment_dir = experiment_dir.expanduser().resolve(strict=True)
 
         experiment = Experiment(experiment_dir, training=False)
         experiment.best(protocol_name, subset=subset)
 
-    if arguments['apply']:
+    if arguments["apply"]:
 
         if subset is None:
-            subset = 'test'
+            subset = "test"
 
-        train_dir = Path(arguments['<train_dir>'])
+        train_dir = Path(arguments["<train_dir>"])
         train_dir = train_dir.expanduser().resolve(strict=True)
         experiment = Experiment.from_train_dir(train_dir, training=False)
 
-        output_dir = Path(experiment.APPLY_DIR.format(
-            train_dir=train_dir,
-            date=experiment.mtime_.strftime('%Y%m%d-%H%M%S')))
+        output_dir = Path(
+            experiment.APPLY_DIR.format(
+                train_dir=train_dir, date=experiment.mtime_.strftime("%Y%m%d-%H%M%S")
+            )
+        )
 
         experiment.apply(protocol_name, output_dir, subset=subset)
