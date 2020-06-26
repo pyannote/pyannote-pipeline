@@ -1,3 +1,7 @@
+### Version 1.5.2 (2020-06-26)
+
+  - feat: add show_progress option to control second progress bar
+  - improve: catch optuna's ExperimentalWarning
 
 ### Version 1.5.1 (2020-06-18)
 
