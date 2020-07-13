@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ from collections import OrderedDict
 from .parameter import Parameter, Frozen
 from .typing import PipelineInput
 from .typing import PipelineOutput
-
+from .typing import Direction
 from filelock import FileLock
 import yaml
 import warnings
@@ -484,8 +484,10 @@ class Pipeline:
         """
         raise NotImplementedError()
 
-    def loss(self, input: PipelineInput,
-                   output: PipelineOutput) -> float:
+    def get_direction(self) -> Direction:
+        return "minimize"
+
+    def loss(self, input: PipelineInput, output: PipelineOutput) -> float:
         """Compute loss for given input/output pair
 
         Parameters

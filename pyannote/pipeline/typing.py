@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,5 +27,12 @@
 # Hervé BREDIN - http://herve.niderb.fr
 
 from typing import TypeVar
-PipelineInput = TypeVar('PipelineInput')
-PipelineOutput = TypeVar('PipelineOutput')
+
+PipelineInput = TypeVar("PipelineInput")
+PipelineOutput = TypeVar("PipelineOutput")
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+Direction = Literal["minimize", "maximize"]
