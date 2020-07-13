@@ -261,6 +261,8 @@ class Experiment:
             pruner=pruner,
         )
 
+        direction = 1 if self.pipeline_.get_direction() == "minimize" else -1
+
         params_yml = train_dir / "params.yml"
 
         progress_bar = tqdm(unit="trial", position=0, leave=True)
@@ -284,14 +286,14 @@ class Experiment:
         try:
             best_loss = optimizer.best_loss
         except ValueError as e:
-            best_loss = np.inf
+            best_loss = direction * np.inf
         count = itertools.count() if n_iterations < 0 else range(n_iterations)
 
         for i, status in zip(count, iterations):
 
             loss = status["loss"]
 
-            if loss < best_loss:
+            if direction * loss < direction * best_loss:
                 best_params = status["params"]
                 best_loss = loss
                 self.pipeline_.dump_params(
