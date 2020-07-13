@@ -368,7 +368,10 @@ class Experiment:
         )
         with open(output_ext, mode="w") as fp:
 
-            for current_file in getattr(protocol, subset)():
+            files = list(getattr(protocol, subset)())
+
+            desc = f"Processing {protocol_name} ({subset})"
+            for current_file in tqdm(iterable=files, desc=desc, unit="file"):
 
                 # apply pipeline and dump output to file
                 output = self.pipeline_(current_file)
