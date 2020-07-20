@@ -32,34 +32,31 @@ import versioneer
 from setuptools import setup, find_packages
 
 setup(
-
     # package
-    namespace_packages=['pyannote'],
+    namespace_packages=["pyannote"],
     packages=find_packages(),
     install_requires=[
-        'pyannote.core >= 4.0',
-        'pyannote.database >= 4.0',
-        'PyYAML >= 3.12',
-        'optuna >= 1.4',
-        'tqdm >= 4.29.1',
-        'docopt >= 0.6.2',
-        'filelock >= 3.0.10',
-        'scikit-learn >= 0.20.2'
+        "pyannote.core >= 4.0",
+        "pyannote.database >= 4.0",
+        "PyYAML >= 3.12",
+        "optuna >= 1.4",
+        "tqdm >= 4.29.1",
+        "docopt >= 0.6.2",
+        "filelock >= 3.0.10",
+        "scikit-learn >= 0.20.2",
     ],
-    entry_points = {
-        'console_scripts': [
-            'pyannote-pipeline=pyannote.pipeline.experiment:main']
+    entry_points={
+        "console_scripts": ["pyannote-pipeline=pyannote.pipeline.experiment:main"]
     },
     # versioneer
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-
     # PyPI
-    name='pyannote.pipeline',
-    description=('Tunable pipelines.'),
-    author='Hervé Bredin',
-    author_email='bredin+pyannote@limsi.fr',
-    url='http://pyannote.github.io/',
+    name="pyannote.pipeline",
+    description=("Tunable pipelines."),
+    author="Hervé Bredin",
+    author_email="bredin+pyannote@limsi.fr",
+    url="http://pyannote.github.io/",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -69,6 +66,6 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Topic :: Scientific/Engineering"
+        "Topic :: Scientific/Engineering",
     ],
 )
