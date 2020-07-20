@@ -29,6 +29,7 @@
 from typing import Iterable, Optional, Callable, Generator, Union, Dict
 from .typing import PipelineInput
 
+
 import time
 import numpy as np
 from tqdm import tqdm
@@ -65,9 +66,6 @@ class Optimizer:
     pruner : `str`, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner". Defaults to no pruning.
-    direction : {"minimize", "maximize"}, optional
-        Direction of optimization. Use "minimize" for minimization and
-        "maximize" for maximization. Defaults to "minimize".
     """
 
     def __init__(
@@ -77,7 +75,6 @@ class Optimizer:
         study_name: Optional[str] = None,
         sampler: Optional[str] = None,
         pruner: Optional[str] = None,
-        direction: str = "minimize",
     ):
 
         self.pipeline = pipeline
@@ -104,8 +101,6 @@ class Optimizer:
                 msg = '`pruner` must be one of "MedianPruner" or "SuccessiveHalvingPruner"'
                 raise ValueError(msg)
 
-        self.direction = direction
-
         # generate name of study based on pipeline hash
         # Klass = pipeline.__class__
         # study_name = f'{Klass.__module__}.{Klass.__name__}[{hash(pipeline)}]'
@@ -116,7 +111,7 @@ class Optimizer:
             storage=self.storage_,
             sampler=sampler,
             pruner=pruner,
-            direction=self.direction,
+            direction=self.pipeline.get_direction(),
         )
 
     @property

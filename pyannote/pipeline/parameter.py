@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,9 @@ from optuna.trial import Trial
 
 class Parameter:
     """Base hyper-parameter"""
+
     pass
+
 
 class Categorical(Parameter):
     """Categorical hyper-parameter
@@ -79,8 +81,7 @@ class DiscreteUniform(Parameter):
         self.q = float(q)
 
     def __call__(self, name: str, trial: Trial):
-        return trial.suggest_discrete_uniform(
-            name, self.low, self.high, self.q)
+        return trial.suggest_discrete_uniform(name, self.low, self.high, self.q)
 
 
 class Integer(Parameter):
@@ -154,6 +155,7 @@ class Uniform(Parameter):
     def __call__(self, name: str, trial: Trial):
         return trial.suggest_uniform(name, self.low, self.high)
 
+
 class Frozen(Parameter):
     """Frozen hyper-parameter
 
@@ -164,6 +166,7 @@ class Frozen(Parameter):
     value :
         Fixed value.
     """
+
     def __init__(self, value: Any):
         super().__init__()
         self.value = value

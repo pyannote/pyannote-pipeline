@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -53,20 +53,22 @@ class ClosestAssignment(Pipeline):
         Do not assign if distance greater than `threshold`.
     """
 
-    def __init__(self, metric: Optional[str] = 'cosine',
-                       normalize: Optional[bool] = False):
+    def __init__(
+        self, metric: Optional[str] = "cosine", normalize: Optional[bool] = False
+    ):
 
         super().__init__()
         self.metric = metric
         self.normalize = normalize
 
-        min_dist, max_dist = dist_range(metric=self.metric,
-                                        normalize=self.normalize)
+        min_dist, max_dist = dist_range(metric=self.metric, normalize=self.normalize)
         if not np.isfinite(max_dist):
             # this is arbitray and might lead to suboptimal results
             max_dist = 1e6
-            msg = (f'bounding distance threshold to {max_dist:g}: '
-                   f'this might lead to suboptimal results.')
+            msg = (
+                f"bounding distance threshold to {max_dist:g}: "
+                f"this might lead to suboptimal results."
+            )
             warnings.warn(msg)
         self.threshold = Uniform(min_dist, max_dist)
 

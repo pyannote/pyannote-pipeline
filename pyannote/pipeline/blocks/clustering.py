@@ -42,6 +42,7 @@ from pyannote.core.utils.distance import l2_normalize
 from ..pipeline import Pipeline
 from ..parameter import Uniform
 
+
 class HierarchicalAgglomerativeClustering(Pipeline):
     """Hierarchical agglomerative clustering
 
@@ -66,10 +67,13 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         Not used when `use_threshold` is True (default).
     """
 
-    def __init__(self, method: Optional[str] = 'pool',
-                       metric: Optional[str] = 'cosine',
-                       use_threshold: Optional[bool] = False,
-                       normalize: Optional[bool] = False):
+    def __init__(
+        self,
+        method: Optional[str] = "pool",
+        metric: Optional[str] = "cosine",
+        use_threshold: Optional[bool] = False,
+        normalize: Optional[bool] = False,
+    ):
 
         super().__init__()
         self.method = method
@@ -79,17 +83,19 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         self.use_threshold = use_threshold
         if self.use_threshold:
 
-            min_dist, max_dist = dist_range(metric=self.metric,
-                                            normalize=self.normalize)
+            min_dist, max_dist = dist_range(
+                metric=self.metric, normalize=self.normalize
+            )
             if not np.isfinite(max_dist):
                 # this is arbitray and might lead to suboptimal results
                 max_dist = 1e6
-                msg = (f'bounding distance threshold to {max_dist:g}: '
-                       f'this might lead to suboptimal results.')
+                msg = (
+                    f"bounding distance threshold to {max_dist:g}: "
+                    f"this might lead to suboptimal results."
+                )
                 warnings.warn(msg)
 
             self.threshold = Uniform(min_dist, max_dist)
-
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
         """Apply hierarchical agglomerative clustering
@@ -108,9 +114,9 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         n_samples, _ = X.shape
 
         if n_samples < 1:
-            msg = 'There should be at least one sample in `X`.'
+            msg = "There should be at least one sample in `X`."
             raise ValueError(msg)
-        
+
         elif n_samples == 1:
             # clustering of just one element
             return np.array([1], dtype=int)
@@ -124,7 +130,7 @@ class HierarchicalAgglomerativeClustering(Pipeline):
         # obtain flat clusters
 
         if self.use_threshold:
-            return fcluster(Z, self.threshold, criterion='distance')
+            return fcluster(Z, self.threshold, criterion="distance")
 
         return fcluster_auto(X, Z, metric=self.metric)
 
@@ -144,20 +150,24 @@ class AffinityPropagationClustering(Pipeline):
         See `sklearn.cluster.AffinityPropagation`
     """
 
-    def __init__(self, metric: Optional[str] = 'cosine'):
+    def __init__(self, metric: Optional[str] = "cosine"):
 
         super().__init__()
         self.metric = metric
 
         self.damping = Uniform(0.5, 1.0)
-        self.preference = Uniform(-10., 0.)
+        self.preference = Uniform(-10.0, 0.0)
 
     def initialize(self):
         """Initialize internal sklearn.cluster.AffinityPropagation"""
 
         self.affinity_propagation_ = sklearn.cluster.AffinityPropagation(
-            damping=self.damping, preference=self.preference,
-            affinity='precomputed', max_iter=200, convergence_iter=50)
+            damping=self.damping,
+            preference=self.preference,
+            affinity="precomputed",
+            max_iter=200,
+            convergence_iter=50,
+        )
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
         """Apply clustering based on affinity propagation
@@ -176,9 +186,9 @@ class AffinityPropagationClustering(Pipeline):
         n_samples, _ = X.shape
 
         if n_samples < 1:
-            msg = 'There should be at least one sample in `X`.'
+            msg = "There should be at least one sample in `X`."
             raise ValueError(msg)
-        
+
         elif n_samples == 1:
             # clustering of just one element
             return np.array([1], dtype=int)

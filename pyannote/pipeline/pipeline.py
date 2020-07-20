@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2019 CNRS
+# Copyright (c) 2018-2020 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,15 +26,14 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import Optional
-from typing import TextIO
-from typing import Union
+from typing import Optional, TextIO, Union
+
 from pathlib import Path
 from collections import OrderedDict
 from .parameter import Parameter, Frozen
 from .typing import PipelineInput
 from .typing import PipelineOutput
-
+from .typing import Direction
 from filelock import FileLock
 import yaml
 import warnings
@@ -67,25 +66,24 @@ class Pipeline:
         """(Advanced) attribute getter"""
 
         # in case `name` corresponds to an instantiated parameter value, returns it
-        if '_instantiated' in self.__dict__:
-            _instantiated = self.__dict__['_instantiated']
+        if "_instantiated" in self.__dict__:
+            _instantiated = self.__dict__["_instantiated"]
             if name in _instantiated:
                 return _instantiated[name]
 
         # in case `name` corresponds to a parameter, returns it
-        if '_parameters' in self.__dict__:
-            _parameters = self.__dict__['_parameters']
+        if "_parameters" in self.__dict__:
+            _parameters = self.__dict__["_parameters"]
             if name in _parameters:
                 return _parameters[name]
 
         # in case `name` corresponds to a sub-pipeline, returns it
-        if '_pipelines' in self.__dict__:
-            _pipelines = self.__dict__['_pipelines']
+        if "_pipelines" in self.__dict__:
+            _pipelines = self.__dict__["_pipelines"]
             if name in _pipelines:
                 return _pipelines[name]
 
-        msg = "'{}' object has no attribute '{}'".format(
-            type(self).__name__, name)
+        msg = "'{}' object has no attribute '{}'".format(type(self).__name__, name)
         raise AttributeError(msg)
 
     def __setattr__(self, name, value):
@@ -101,15 +99,16 @@ class Pipeline:
                 if name in d:
                     del d[name]
 
-        _parameters = self.__dict__.get('_parameters')
-        _instantiated = self.__dict__.get('_instantiated')
-        _pipelines = self.__dict__.get('_pipelines')
+        _parameters = self.__dict__.get("_parameters")
+        _instantiated = self.__dict__.get("_instantiated")
+        _pipelines = self.__dict__.get("_pipelines")
 
         # if `value` is an instance of `Parameter`, store it in `_parameters`
         if isinstance(value, Parameter):
             if _parameters is None:
-                msg = ("cannot assign hyper-parameters "
-                       "before Pipeline.__init__() call")
+                msg = (
+                    "cannot assign hyper-parameters " "before Pipeline.__init__() call"
+                )
                 raise AttributeError(msg)
             remove_from(self.__dict__, _instantiated, _pipelines)
             _parameters[name] = value
@@ -118,8 +117,7 @@ class Pipeline:
         # add/update one sub-pipeline
         if isinstance(value, Pipeline):
             if _pipelines is None:
-                msg = ("cannot assign sub-pipelines "
-                       "before Pipeline.__init__() call")
+                msg = "cannot assign sub-pipelines " "before Pipeline.__init__() call"
                 raise AttributeError(msg)
             remove_from(self.__dict__, _parameters, _instantiated)
             _pipelines[name] = value
@@ -146,8 +144,9 @@ class Pipeline:
         else:
             object.__delattr__(self, name)
 
-    def _flattened_parameters(self, frozen: Optional[bool] = False,
-                              instantiated: Optional[bool] = False) -> dict:
+    def _flattened_parameters(
+        self, frozen: Optional[bool] = False, instantiated: Optional[bool] = False
+    ) -> dict:
         """Get flattened dictionary of parameters
 
         Parameters
@@ -164,7 +163,7 @@ class Pipeline:
         """
 
         if frozen and instantiated:
-            msg = ("one must choose between `frozen` and `instantiated`.")
+            msg = "one must choose between `frozen` and `instantiated`."
             raise ValueError(msg)
 
         # initialize dictionary with root parameters
@@ -172,8 +171,9 @@ class Pipeline:
             params = dict(self._instantiated)
 
         elif frozen:
-            params = {n: p.value for n, p in self._parameters.items()
-                      if isinstance(p, Frozen)}
+            params = {
+                n: p.value for n, p in self._parameters.items() if isinstance(p, Frozen)
+            }
 
         else:
             params = dict(self._parameters)
@@ -181,9 +181,10 @@ class Pipeline:
         # recursively add sub-pipeline parameters
         for pipeline_name, pipeline in self._pipelines.items():
             pipeline_params = pipeline._flattened_parameters(
-                frozen=frozen, instantiated=instantiated)
+                frozen=frozen, instantiated=instantiated
+            )
             for name, value in pipeline_params.items():
-                params[f'{pipeline_name}>{name}'] = value
+                params[f"{pipeline_name}>{name}"] = value
 
         return params
 
@@ -220,7 +221,7 @@ class Pipeline:
         for name, value in nested_params.items():
             if isinstance(value, dict):
                 for subname, subvalue in self._flatten(value).items():
-                    flattened_params[f'{name}>{subname}'] = subvalue
+                    flattened_params[f"{name}>{subname}"] = subvalue
             else:
                 flattened_params[name] = value
         return flattened_params
@@ -261,12 +262,12 @@ class Pipeline:
         for name, value in flattened_params.items():
             # if name contains has multipe ">"-separated tokens
             # it means that it is a sub-pipeline parameter
-            tokens = name.split('>')
+            tokens = name.split(">")
             if len(tokens) > 1:
                 # read sub-pipeline name
                 pipeline_name = tokens[0]
                 # read parameter name
-                param_name = '>'.join(tokens[1:])
+                param_name = ">".join(tokens[1:])
                 # update sub-pipeline flattened dictionary
                 pipeline_params[pipeline_name][param_name] = value
 
@@ -281,9 +282,12 @@ class Pipeline:
 
         return nested_params
 
-    def parameters(self, trial: Optional[Trial] = None,
-                         frozen: Optional[bool] = False,
-                         instantiated: Optional[bool] = False) -> dict:
+    def parameters(
+        self,
+        trial: Optional[Trial] = None,
+        frozen: Optional[bool] = False,
+        instantiated: Optional[bool] = False,
+    ) -> dict:
         """Returns nested dictionary of (optionnaly instantiated) parameters.
 
         For a pipeline with one `param`, one sub-pipeline with its own param
@@ -318,13 +322,11 @@ class Pipeline:
             raise ValueError(msg)
 
         # get flattened dictionary of uninstantiated parameters
-        params = self._flattened_parameters(frozen=frozen,
-                                            instantiated=instantiated)
+        params = self._flattened_parameters(frozen=frozen, instantiated=instantiated)
 
         if trial is not None:
             # use provided `trial` to suggest values for parameters
-            params = {name: param(name, trial)
-                      for name, param in params.items()}
+            params = {name: param(name, trial) for name, param in params.items()}
 
         # un-flatten flattend dictionary
         return self._unflatten(params)
@@ -333,7 +335,7 @@ class Pipeline:
         """Instantiate root pipeline with current set of parameters"""
         pass
 
-    def freeze(self, params: dict) -> 'Pipeline':
+    def freeze(self, params: dict) -> "Pipeline":
         """Recursively freeze pipeline parameters
 
         Parameters
@@ -352,8 +354,10 @@ class Pipeline:
             # recursively freeze sub-pipelines parameters
             if name in self._pipelines:
                 if not isinstance(value, dict):
-                    msg = (f"only parameters of '{name}' pipeline can "
-                           f"be frozen (not the whole pipeline)")
+                    msg = (
+                        f"only parameters of '{name}' pipeline can "
+                        f"be frozen (not the whole pipeline)"
+                    )
                     raise ValueError(msg)
                 self._pipelines[name].freeze(value)
                 continue
@@ -368,7 +372,7 @@ class Pipeline:
 
         return self
 
-    def instantiate(self, params: dict) -> 'Pipeline':
+    def instantiate(self, params: dict) -> "Pipeline":
         """Recursively instantiate all pipelines
 
         Parameters
@@ -387,8 +391,10 @@ class Pipeline:
             # recursively call `instantiate` with sub-pipelines
             if name in self._pipelines:
                 if not isinstance(value, dict):
-                    msg = (f"only parameters of '{name}' pipeline can "
-                           f"be instantiated (not the whole pipeline)")
+                    msg = (
+                        f"only parameters of '{name}' pipeline can "
+                        f"be instantiated (not the whole pipeline)"
+                    )
                     raise ValueError(msg)
                 self._pipelines[name].instantiate(value)
                 continue
@@ -398,8 +404,10 @@ class Pipeline:
                 param = getattr(self, name)
                 # overwrite provided value of frozen parameters
                 if isinstance(param, Frozen) and param.value != value:
-                    msg = (f"Parameter '{name}' is frozen: using its frozen value "
-                           f"({param.value}) instead of the one provided ({value}).")
+                    msg = (
+                        f"Parameter '{name}' is frozen: using its frozen value "
+                        f"({param.value}) instead of the one provided ({value})."
+                    )
                     warnings.warn(msg)
                     value = param.value
                 setattr(self, name, value)
@@ -412,9 +420,12 @@ class Pipeline:
 
         return self
 
-    def dump_params(self, params_yml: Path,
-                          params: Optional[dict] = None,
-                          loss: Optional[float] = None) -> str:
+    def dump_params(
+        self,
+        params_yml: Path,
+        params: Optional[dict] = None,
+        loss: Optional[float] = None,
+    ) -> str:
         """Dump parameters to disk
 
         Parameters
@@ -435,21 +446,21 @@ class Pipeline:
         if params is None:
             params = self.parameters(instantiated=True)
 
-        content = {'params': params}
+        content = {"params": params}
         if loss is not None:
-            content['loss'] = loss
+            content["loss"] = loss
 
         # format as valid YAML
         content_yml = yaml.dump(content, default_flow_style=False)
 
         # (safely) dump YAML content
-        with FileLock(params_yml.with_suffix('.lock')):
-            with open(params_yml, mode='w') as fp:
+        with FileLock(params_yml.with_suffix(".lock")):
+            with open(params_yml, mode="w") as fp:
                 fp.write(content_yml)
 
         return content_yml
 
-    def load_params(self, params_yml: Path) -> 'Pipeline':
+    def load_params(self, params_yml: Path) -> "Pipeline":
         """Instantiate pipeline using parameters from disk
 
         Parameters
@@ -464,15 +475,15 @@ class Pipeline:
 
         """
 
-        with open(params_yml, mode='r') as fp:
+        with open(params_yml, mode="r") as fp:
             params = yaml.load(fp, Loader=yaml.SafeLoader)
-        return self.instantiate(params['params'])
+        return self.instantiate(params["params"])
 
     def __call__(self, input: PipelineInput) -> PipelineOutput:
         """Apply pipeline on input and return its output"""
         raise NotImplementedError
 
-    def get_metric(self) -> 'pyannote.metrics.base.BaseMetric':
+    def get_metric(self) -> "pyannote.metrics.base.BaseMetric":
         """Return new metric (from pyannote.metrics)
 
         When this method is implemented, the returned metric is used as a
@@ -484,8 +495,10 @@ class Pipeline:
         """
         raise NotImplementedError()
 
-    def loss(self, input: PipelineInput,
-                   output: PipelineOutput) -> float:
+    def get_direction(self) -> Direction:
+        return "minimize"
+
+    def loss(self, input: PipelineInput, output: PipelineOutput) -> float:
         """Compute loss for given input/output pair
 
         Parameters
@@ -504,10 +517,9 @@ class Pipeline:
 
     @property
     def write_format(self):
-        return 'rttm'
+        return "rttm"
 
-    def write(self, file: TextIO,
-                    output: PipelineOutput):
+    def write(self, file: TextIO, output: PipelineOutput):
         """Write pipeline output to file
 
         Parameters
@@ -517,10 +529,9 @@ class Pipeline:
             Pipeline output
         """
 
-        return getattr(self, f'write_{self.write_format}')(file, output)
+        return getattr(self, f"write_{self.write_format}")(file, output)
 
-    def write_rttm(self, file: TextIO,
-                         output: Union[Timeline, Annotation]):
+    def write_rttm(self, file: TextIO, output: Union[Timeline, Annotation]):
         """Write pipeline output to "rttm" file
 
         Parameters
@@ -531,25 +542,24 @@ class Pipeline:
         """
 
         if isinstance(output, Timeline):
-            output = output.to_annotation(generator='string')
+            output = output.to_annotation(generator="string")
 
         if isinstance(output, Annotation):
             for s, t, l in output.itertracks(yield_label=True):
                 line = (
-                    f'SPEAKER {output.uri} 1 {s.start:.3f} {s.duration:.3f} '
-                    f'<NA> <NA> {l} <NA> <NA>\n'
+                    f"SPEAKER {output.uri} 1 {s.start:.3f} {s.duration:.3f} "
+                    f"<NA> <NA> {l} <NA> <NA>\n"
                 )
                 file.write(line)
             return
 
         msg = (
             f'Dumping {output.__class__.__name__} instances to "rttm" files '
-            f'is not supported.'
+            f"is not supported."
         )
         raise NotImplementedError(msg)
 
-    def write_txt(self, file: TextIO,
-                        output: Union[Timeline, Annotation]):
+    def write_txt(self, file: TextIO, output: Union[Timeline, Annotation]):
         """Write pipeline output to "txt" file
 
         Parameters
@@ -561,18 +571,18 @@ class Pipeline:
 
         if isinstance(output, Timeline):
             for s in output:
-                line = f'{output.uri} {s.start:.3f} {s.end:.3f}\n'
+                line = f"{output.uri} {s.start:.3f} {s.end:.3f}\n"
                 file.write(line)
             return
 
         if isinstance(output, Annotation):
             for s, t, l in output.itertracks(yield_label=True):
-                line = f'{output.uri} {s.start:.3f} {s.end:.3f} {t} {l}\n'
+                line = f"{output.uri} {s.start:.3f} {s.end:.3f} {t} {l}\n"
                 file.write(line)
             return
 
         msg = (
             f'Dumping {output.__class__.__name__} instances to "txt" files '
-            f'is not supported.'
+            f"is not supported."
         )
         raise NotImplementedError(msg)

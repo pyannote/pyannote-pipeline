@@ -2,6 +2,34 @@
 Changelog
 #########
 
+Version 2.0.a0 (2020-07-20)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- BREAKING: remove "direction" argument from Optimizer
+- feat: add Pipeline.get_direction method (defaults to "minimize")
+- feat: add progress bar in "apply" mode
+
+Version 1.5.2 (2020-06-26)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add show_progress option to control second progress bar
+- improve: catch optuna's ExperimentalWarning
+
+Version 1.5.1 (2020-06-18)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add second progress bar to display trial internal progress
+- fix: skip Frozen parameters in pipeline.instantiate (@PaulLerner)
+- fix: switch to pyannote.database 4.0+ (@PaulLerner)
+- setup: switch to optuna 1.4+ and pyannote.core 4.0+
+
+Version 1.5 (2020-04-01)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add "direction" parameter to Optimizer
+- fix: fix support for in-memory optimization (when db is None)
+- setup: switch to pyannote.database 3.0
+
 Version 1.4 (2020-03-10)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -14,3 +42,45 @@ Version 1.3 (2020-01-27)
 - feat: store best loss value in "params.yml"
 - fix: handle corner case in pyannote.pipeline.blocks.clustering
 - fix: use YAML safe loader
+
+Version 1.2 (2019-06-26)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add support for callable preprocessors
+- setup: switch to pyannote.core 3.0
+- setup: switch to pyannote.database 2.2
+
+Version 1.1.1 (2019-04-09)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- fix: do not raise FileExistsError when output directory exists in `pyannote-pipeline apply`
+- fix: skip evaluation of protocols without groundtruth in `pyannote-pipeline apply`
+- setup: switch to pyannote.database 2.1
+
+Version 1.1 (2019-03-20)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add export to RTTM format
+- setup: switch to pyannote.database 2.0
+- fix: fix "use_threshold" parameter in HAC block
+
+Version 1.0 (2019-02-05)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add support for pyannote.metrics (through `Pipeline.get_metric`)
+- feat: add support for optuna trial pruning
+- feat: keep track of processing & evaluation time
+
+Version 0.3 (2019-01-17)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: switch to optuna backend
+- feat: add "use_threshold" option to HAC pipeline
+- BREAKING: update Pipeline API
+- BREAKING: update Optimizer API
+- BREAKING: remove tensorboard support (for now)
+
+Version 0.2.1 (2018-12-04)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- first public release
