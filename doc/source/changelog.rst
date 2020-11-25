@@ -2,8 +2,8 @@
 Changelog
 #########
 
-Version 2.0.a0 (2020-07-20)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Version 2.0 (2020-11-25)
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 - BREAKING: remove "direction" argument from Optimizer
 - feat: add Pipeline.get_direction method (defaults to "minimize")
