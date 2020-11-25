@@ -380,14 +380,14 @@ class Experiment:
                 self.pipeline_.write(fp, output)
 
                 # compute evaluation metric (when possible)
-                if "annotation" not in current_file:
+                reference = current_file.get("annotation", None)
+                if reference is None:
                     metric = None
 
                 # compute evaluation metric (when available)
                 if metric is None:
                     continue
 
-                reference = current_file["annotation"]
                 uem = get_annotated(current_file)
                 _ = metric(reference, output, uem=uem)
 
