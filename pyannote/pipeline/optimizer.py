@@ -262,7 +262,7 @@ class Optimizer:
         """
 
         # pipeline is currently being optimized
-        self.pipeline_.training = True
+        self.pipeline.training = True
 
         objective = self.get_objective(inputs, show_progress=show_progress)
 
@@ -276,7 +276,7 @@ class Optimizer:
         self.study_.optimize(objective, n_trials=n_iterations, timeout=None, n_jobs=1)
 
         # pipeline is no longer being optimized
-        self.pipeline_.training = False
+        self.pipeline.training = False
 
         return {"loss": self.best_loss, "params": self.best_params}
 
@@ -318,7 +318,7 @@ class Optimizer:
         while True:
 
             # pipeline is currently being optimized
-            self.pipeline_.training = True
+            self.pipeline.training = True
 
             # one trial at a time
             self.study_.optimize(objective, n_trials=1, timeout=None, n_jobs=1)
@@ -330,6 +330,6 @@ class Optimizer:
                 continue
 
             # pipeline is no longer being optimized
-            self.pipeline_.training = False
+            self.pipeline.training = False
 
             yield {"loss": best_loss, "params": best_params}
