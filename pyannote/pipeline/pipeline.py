@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2020 CNRS
+# Copyright (c) 2018-2021 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -56,6 +56,9 @@ class Pipeline:
 
         # sub-pipelines
         self._pipelines = OrderedDict()
+
+        # whether pipeline is currently being optimized
+        self.training = False
 
     def __hash__(self):
         # FIXME -- also keep track of (sub)pipeline attribtes

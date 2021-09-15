@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2020 CNRS
+# Copyright (c) 2018-2021 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -261,6 +261,9 @@ class Optimizer:
             ['params'] nested dictionary of optimal parameters
         """
 
+        # pipeline is currently being optimized
+        self.pipeline.training = True
+
         objective = self.get_objective(inputs, show_progress=show_progress)
 
         if warm_start:
@@ -271,6 +274,9 @@ class Optimizer:
                 self.study_.enqueue_trial(flattened_params)
 
         self.study_.optimize(objective, n_trials=n_iterations, timeout=None, n_jobs=1)
+
+        # pipeline is no longer being optimized
+        self.pipeline.training = False
 
         return {"loss": self.best_loss, "params": self.best_params}
 
@@ -311,6 +317,9 @@ class Optimizer:
 
         while True:
 
+            # pipeline is currently being optimized
+            self.pipeline.training = True
+
             # one trial at a time
             self.study_.optimize(objective, n_trials=1, timeout=None, n_jobs=1)
 
@@ -319,5 +328,8 @@ class Optimizer:
                 best_params = self.best_params
             except ValueError as e:
                 continue
+
+            # pipeline is no longer being optimized
+            self.pipeline.training = False
 
             yield {"loss": best_loss, "params": best_params}
