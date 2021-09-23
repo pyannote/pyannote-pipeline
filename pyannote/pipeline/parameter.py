@@ -62,14 +62,8 @@ class ParamDict(StructuredParameter):
         for name, param in params.items():
             assert isinstance(name, str)
             assert isinstance(param, Parameter)
+            assert not name.isdigit()
         self._params = params
-
-    def __call__(self, name: str, trial: Trial):
-        return {
-            param_name: param(name, trial)
-            for param_name, param
-            in self._params.items()
-        }
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> Dict[str, Any]:
         params_dict = {}
@@ -92,6 +86,13 @@ class ParamDict(StructuredParameter):
 
         return params_dict
 
+    def __call__(self, name: str, trial: Trial):
+        return {
+            param_name: param(f"{name}>{param_name}", trial)
+            for param_name, param
+            in self._params.items()
+        }
+
 
 class ParamList(StructuredParameter):
     """A list of parameters
@@ -107,9 +108,6 @@ class ParamList(StructuredParameter):
         for param in params:
             assert isinstance(param, Parameter)
         self.params = params
-
-    def __call__(self, name: str, trial: Trial):
-        return [param(name, trial) for param in self.params]
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> List[Any]:
         params_list: List[Tuple[int, Any]] = []
@@ -145,6 +143,8 @@ class ParamList(StructuredParameter):
 
         return params
 
+    def __call__(self, name: str, trial: Trial):
+        return [param(f"{name}>{i}", trial) for i, param in enumerate(self.params)]
 
 class Categorical(Parameter):
     """Categorical hyper-parameter

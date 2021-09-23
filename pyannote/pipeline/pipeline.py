@@ -94,7 +94,8 @@ class Pipeline:
 
         If `value` is an instance of `Parameter`, store it in `_parameters`.
         If `value` is an instance of `Pipeline`, store it in `_pipelines`.
-        If `name` is in `_parameters`, store `value` in `_instantiated`.
+        If `name` is in `_parameters`, and `value` isn't an instance of `Parameter`
+        store `value` in `_instantiated`.
         """
 
         def remove_from(*dicts):
@@ -164,7 +165,7 @@ class Pipeline:
         params : `dict`
             Flattened dictionary of parameters.
         """
-
+        # TODO: check for structured params
         if frozen and instantiated:
             msg = "one must choose between `frozen` and `instantiated`."
             raise ValueError(msg)
@@ -267,7 +268,6 @@ class Pipeline:
 
         nested_params = {}
 
-        # TODO : add logic to support lists and dicts
         pipeline_params = {name: {} for name in self._pipelines}
         structured_params = {name: {} for name, param in self._parameters.items()
                              if isinstance(param, StructuredParameter)}
