@@ -26,21 +26,21 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
+import warnings
+from collections import OrderedDict
+from pathlib import Path
 from typing import Optional, TextIO, Union
 
-from pathlib import Path
-from collections import OrderedDict
-from .parameter import Parameter, Frozen
+import yaml
+from filelock import FileLock
+from optuna.trial import Trial
+from pyannote.core import Annotation
+from pyannote.core import Timeline
+
+from .parameter import Parameter, Frozen, StructuredParameter
+from .typing import Direction
 from .typing import PipelineInput
 from .typing import PipelineOutput
-from .typing import Direction
-from filelock import FileLock
-import yaml
-import warnings
-
-from pyannote.core import Timeline
-from pyannote.core import Annotation
-from optuna.trial import Trial
 
 
 class Pipeline:
@@ -61,7 +61,7 @@ class Pipeline:
         self.training = False
 
     def __hash__(self):
-        # FIXME -- also keep track of (sub)pipeline attribtes
+        # FIXME -- also keep track of (sub)pipeline attributes
         frozen = self.parameters(frozen=True)
         return hash(tuple(sorted(self._flatten(frozen).items())))
 
@@ -148,7 +148,7 @@ class Pipeline:
             object.__delattr__(self, name)
 
     def _flattened_parameters(
-        self, frozen: Optional[bool] = False, instantiated: Optional[bool] = False
+            self, frozen: Optional[bool] = False, instantiated: Optional[bool] = False
     ) -> dict:
         """Get flattened dictionary of parameters
 
@@ -192,7 +192,7 @@ class Pipeline:
         return params
 
     def _flatten(self, nested_params: dict) -> dict:
-        """Convert nested dictionary to flattened dictionary
+        """Recursively convert nested dictionary to flattened dictionary
 
         For instance, a nested dictionary like this one:
 
@@ -222,10 +222,16 @@ class Pipeline:
         """
         flattened_params = dict()
         for name, value in nested_params.items():
+            # if it's a list, convert it to a numbered dict
+            if isinstance(value, list):
+                value = {i: subvalue for i, subvalue in enumerate(value)}
+
+            # in case of a dict, recursively flatten the dictionary
             if isinstance(value, dict):
                 for subname, subvalue in self._flatten(value).items():
                     flattened_params[f"{name}>{subname}"] = subvalue
-            else:
+
+            else:  # else it's already at the root, no need to flatten
                 flattened_params[name] = value
         return flattened_params
 
@@ -261,18 +267,32 @@ class Pipeline:
 
         nested_params = {}
 
+        # TODO : add logic to support lists and dicts
         pipeline_params = {name: {} for name in self._pipelines}
+        structured_params = {name: {} for name, param in self._parameters.items()
+                             if isinstance(param, StructuredParameter)}
         for name, value in flattened_params.items():
-            # if name contains has multipe ">"-separated tokens
-            # it means that it is a sub-pipeline parameter
+            # if name contains has multiple ">"-separated tokens
+            # it means that it is either
+            # - sub-pipeline parameter
+            # - a parameter subdict or a list of parameters
             tokens = name.split(">")
-            if len(tokens) > 1:
-                # read sub-pipeline name
-                pipeline_name = tokens[0]
+            root_name : str = tokens[0]
+            if len(tokens) > 1 and root_name in pipeline_params:
+                # root name is the sub-pipeline name
+                pipeline_name = root_name
                 # read parameter name
                 param_name = ">".join(tokens[1:])
                 # update sub-pipeline flattened dictionary
                 pipeline_params[pipeline_name][param_name] = value
+
+            elif len(tokens) > 1 and root_name not in pipeline_params:
+                # root name is the structured parameter name
+                struc_param_name = root_name
+                # read sub parameter name
+                sub_param_name = ">".join(tokens[1:])
+                # update sub-parameter flattened dictionnary
+                structured_params[struc_param_name][sub_param_name] = value
 
             # otherwise, it is an actual parameter of this pipeline
             else:
@@ -283,15 +303,21 @@ class Pipeline:
         for name, pipeline in self._pipelines.items():
             nested_params[name] = pipeline._unflatten(pipeline_params[name])
 
+        # recursively unflatten structured parameter flattened dictionary
+        for name, param in self._parameters.items():
+            if not isinstance(param, StructuredParameter):
+                continue
+            nested_params[name] = param.unflatten(structured_params[name])
+
         return nested_params
 
     def parameters(
-        self,
-        trial: Optional[Trial] = None,
-        frozen: Optional[bool] = False,
-        instantiated: Optional[bool] = False,
+            self,
+            trial: Optional[Trial] = None,
+            frozen: Optional[bool] = False,
+            instantiated: Optional[bool] = False,
     ) -> dict:
-        """Returns nested dictionary of (optionnaly instantiated) parameters.
+        """Returns nested dictionary of (optionally instantiated) parameters.
 
         For a pipeline with one `param`, one sub-pipeline with its own param
         and its own sub-pipeline, it will returns something like:
@@ -424,10 +450,10 @@ class Pipeline:
         return self
 
     def dump_params(
-        self,
-        params_yml: Path,
-        params: Optional[dict] = None,
-        loss: Optional[float] = None,
+            self,
+            params_yml: Path,
+            params: Optional[dict] = None,
+            loss: Optional[float] = None,
     ) -> str:
         """Dump parameters to disk
 
