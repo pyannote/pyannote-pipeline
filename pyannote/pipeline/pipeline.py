@@ -93,8 +93,8 @@ class Pipeline:
         """(Advanced) attribute setter
 
         If `value` is an instance of `Parameter`, store it in `_parameters`.
-        If `value` is an instance of `Pipeline`, store it in `_pipelines`.
-        If `name` is in `_parameters`, and `value` isn't an instance of `Parameter`
+        elif `value` is an instance of `Pipeline`, store it in `_pipelines`.
+        elif `value` isn't an instance of `Parameter` and `name` is in `_parameters`,
         store `value` in `_instantiated`.
         """
 

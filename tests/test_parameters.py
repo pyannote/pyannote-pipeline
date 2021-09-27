@@ -1,9 +1,9 @@
 from pyannote.pipeline.parameter import ParamDict, Uniform, Integer, ParamList, Categorical
-from tests.utils import FakeTrial
+from .utils import FakeTrial
 
 
 def test_params_dict():
-    params_dict = ParamDict({
+    params_dict = ParamDict(**{
         "param_a": Uniform(0, 1),
         "param_b": Integer(0, 10)
     })
@@ -21,7 +21,7 @@ def test_params_list():
 
 def test_nested_params():
     nested = ParamList([
-        ParamDict({
+        ParamDict(**{
             "param_a": Uniform(0, 1),
             "param_b": Integer(0, 10)
         }),
@@ -32,7 +32,7 @@ def test_nested_params():
                                                      'param_b': 0},
                                                     'a', 0.0]
 
-    nested = ParamDict({
+    nested = ParamDict(**{
         "param_list": ParamList([Uniform(i, 10) for i in range(3)]),
         "param_cat": Categorical(["a", "b", "c"])
     })

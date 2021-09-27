@@ -28,7 +28,7 @@
 # Hadrien TITEUX - https://github.com/hadware
 
 from abc import ABCMeta, abstractmethod
-from typing import Iterable, Any, Dict, List, Tuple, Union
+from typing import Iterable, Any, Dict, List, Tuple, Union, Sequence
 
 from optuna.trial import Trial
 
@@ -45,6 +45,7 @@ def flatten_structured(param_struc: Union[Dict, List]) \
         else:
             yield name, param
 
+
 class Parameter(metaclass=ABCMeta):
     """Base hyper-parameter"""
 
@@ -56,7 +57,7 @@ class Parameter(metaclass=ABCMeta):
 class StructuredParameter(Parameter):
 
     @abstractmethod
-    def unflatten(self, flattened_params: Dict[str, Any]) -> Dict[str, Any]:
+    def unflatten(self, flattened_params: Dict[str, Any]):
         pass
 
     @abstractmethod
@@ -73,7 +74,7 @@ class ParamDict(StructuredParameter):
         A dictionary of parameters
     """
 
-    def __init__(self, params: Dict[str, Parameter]):
+    def __init__(self, **params: Dict[str, Parameter]):
         super().__init__()
         for name, param in params.items():
             assert isinstance(name, str)
@@ -93,16 +94,31 @@ class ParamDict(StructuredParameter):
         return flattened_params
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert flattened dictionary representation of a
+        `ParamDict` to its nested corresponding form.
+
+        Parameter
+        ---------
+        flattened_params : `dict`
+
+        Returns
+        -------
+        nested_params : `dict`
+        """
         params_dict = {}
         structured_params = {name: {} for name, param in self._params.items()
                              if isinstance(param, StructuredParameter)}
         for name, value in flattened_params.items():
             tokens = name.split(">")
             root_name: str = tokens[0]
+
             if len(tokens) > 1 and root_name in structured_params:
+                # if name contains has multiple ">"-separated tokens,
+                # it's a structured "sub"parameter or the parameter `root_name`
                 subparam_name = ">".join(tokens[1:])
                 structured_params[root_name][subparam_name] = value
             else:
+                # # otherwise, it is a regular parameter of this structured parameter
                 params_dict[name] = value
 
         # recursively unflatten structured parameter flattened dictionary
@@ -130,17 +146,32 @@ class ParamList(StructuredParameter):
         A list of parameters
     """
 
-    def __init__(self, params: List[Parameter]):
+    def __init__(self, params: Sequence[Parameter]):
         super().__init__()
         for param in params:
             assert isinstance(param, Parameter)
         self._params = params
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> List[Any]:
+        """Convert flattened dictionary representation of a
+        `ParamList` to its nested corresponding form.
+
+        Parameter
+        ---------
+        flattened_params : `dict`
+
+        Returns
+        -------
+        nested_params : `list`
+        """
         params_list: List[Tuple[int, Any]] = []
-        structured_params = {idx: {} for idx, param in enumerate(self._params)
-                             if isinstance(param, StructuredParameter)}
+        structured_params: Dict[int, Any] = {
+            idx: {} for idx, param in enumerate(self._params)
+            if isinstance(param, StructuredParameter)
+        }
         params_indices = []
+        # as with DictParams unflattening, building
+        # a dictionnary of the parameters based on their flattened representation
         for name, value in flattened_params.items():
             tokens = name.split(">")
             root_name = tokens[0]
