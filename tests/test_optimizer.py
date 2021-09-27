@@ -50,7 +50,7 @@ def test_structured_list_param_optim(target, direction: Direction):
 
         def __init__(self):
             super().__init__()
-            self.list_param: List[int] = ParamList([Integer(0, i) for i in range(3)])
+            self.list_param: List[int] = ParamList(*[Integer(0, i) for i in range(3)])
 
         def __call__(self, data: float) -> float:
             return sum(self.list_param) + data
@@ -101,7 +101,7 @@ def test_nested_structured_param_optim(target, direction: Direction):
             super().__init__()
             self.param_dict = ParamDict(
                 param_a=Integer(0, 10),
-                param_b=ParamList([Integer(0, 2), Integer(0, 2)])
+                param_b=ParamList(*[Integer(0, 2), Integer(0, 2)])
             )
 
         def __call__(self, data: float) -> float:

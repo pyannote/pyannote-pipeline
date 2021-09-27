@@ -34,7 +34,7 @@ def test_pipeline_params_structured():
                 "param_a": Uniform(0, 1),
                 "param_b": Integer(5, 10)
             })
-            self.params_list = ParamList([
+            self.params_list = ParamList(*[
                 Integer(i, 10) for i in range(5)
             ])
 
@@ -77,7 +77,7 @@ def test_pipeline_nested_parameters():
 
         def __init__(self):
             super().__init__()
-            self.nested_param = ParamList([
+            self.nested_param = ParamList(*[
                 ParamDict(**{
                     "param_a": Uniform(0, 1),
                     "param_b": Integer(5, 10)

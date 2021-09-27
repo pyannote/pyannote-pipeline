@@ -146,8 +146,9 @@ class ParamList(StructuredParameter):
         A list of parameters
     """
 
-    def __init__(self, params: Sequence[Parameter]):
+    def __init__(self, *params: Iterable[Parameter]):
         super().__init__()
+        params = list(params)
         for param in params:
             assert isinstance(param, Parameter)
         self._params = params
