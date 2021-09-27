@@ -27,6 +27,10 @@
 # Hervé BREDIN - http://herve.niderb.fr
 
 from typing import Iterable, Optional, Callable, Generator, Union, Dict
+
+from optuna.pruners import BasePruner
+from optuna.samplers import BaseSampler, TPESampler, RandomSampler
+
 from .typing import PipelineInput
 
 
@@ -60,12 +64,13 @@ class Optimizer:
     study_name : `str`, optional
         Name of study. In case it already exists, study will continue from
         there. # TODO -- generate this automatically
-    sampler : `str`, optional
+    sampler : `str` or sampler instance, optional
         Algorithm for value suggestion. Must be one of "RandomSampler" or
-        "TPESampler". Defaults to no "TPESampler".
-    pruner : `str`, optional
+        "TPESampler", or a sampler instance. Defaults to no "TPESampler".
+    pruner : `str` or pruner instance, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
-        "SuccessiveHalvingPruner". Defaults to no pruning.
+        "SuccessiveHalvingPruner", or a pruner instance.
+        Defaults to no pruning.
     """
 
     def __init__(
@@ -73,7 +78,7 @@ class Optimizer:
         pipeline: Pipeline,
         db: Optional[Path] = None,
         study_name: Optional[str] = None,
-        sampler: Optional[str] = None,
+        sampler: Optional[Union[str, BaseSampler]] = None,
         pruner: Optional[str] = None,
     ):
 
@@ -86,20 +91,27 @@ class Optimizer:
             self.storage_ = f"sqlite:///{self.db}"
         self.study_name = study_name
 
-        self.sampler = "TPESampler" if sampler is None else sampler
-        try:
-            sampler = getattr(optuna.samplers, self.sampler)()
-        except AttributeError as e:
-            msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
-            raise ValueError(msg)
-
-        self.pruner = pruner
-        if pruner is not None:
+        if isinstance(sampler, BaseSampler):
+            self.sampler = sampler
+        elif isinstance(sampler, str):
             try:
-                pruner = getattr(optuna.pruners, self.pruner)()
+                self.sampler = getattr(optuna.samplers, sampler)()
+            except AttributeError as e:
+                msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
+                raise ValueError(msg)
+        elif sampler is None:
+            self.sampler = TPESampler()
+
+        if isinstance(pruner, BasePruner):
+            self.pruner = pruner
+        elif isinstance(pruner, str):
+            try:
+                self.pruner = getattr(optuna.pruners, pruner)()
             except AttributeError as e:
                 msg = '`pruner` must be one of "MedianPruner" or "SuccessiveHalvingPruner"'
                 raise ValueError(msg)
+        else:
+            self.pruner = None
 
         # generate name of study based on pipeline hash
         # Klass = pipeline.__class__
@@ -109,8 +121,8 @@ class Optimizer:
             study_name=self.study_name,
             load_if_exists=True,
             storage=self.storage_,
-            sampler=sampler,
-            pruner=pruner,
+            sampler=self.sampler,
+            pruner=self.pruner,
             direction=self.pipeline.get_direction(),
         )
 

@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 
 import numpy as np
 import pytest
+from optuna.samplers import TPESampler
 
 from pyannote.pipeline import Pipeline, Optimizer
 from pyannote.pipeline.parameter import Integer, ParamList, ParamDict
@@ -10,7 +11,8 @@ from pyannote.pipeline.typing import Direction
 
 def optimizer_tester(pipeline: Pipeline, target: Any):
     dataset = np.ones(10)
-    optimizer = Optimizer(pipeline)
+    sampler = TPESampler(seed=4577)
+    optimizer = Optimizer(pipeline, sampler=sampler)
     optimizer.tune(dataset, n_iterations=100, show_progress=False)
     assert optimizer.best_params == target
 
