@@ -29,7 +29,7 @@
 import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import Optional, TextIO, Union
+from typing import Optional, TextIO, Union, Dict, Any, List, Iterable, Tuple
 
 import yaml
 from filelock import FileLock
@@ -37,7 +37,7 @@ from optuna.trial import Trial
 from pyannote.core import Annotation
 from pyannote.core import Timeline
 
-from .parameter import Parameter, Frozen, StructuredParameter
+from .parameter import Parameter, Frozen, StructuredParameter, flatten_structured
 from .typing import Direction
 from .typing import PipelineInput
 from .typing import PipelineOutput
@@ -49,13 +49,13 @@ class Pipeline:
     def __init__(self):
 
         # un-instantiated parameters (= `Parameter` instances)
-        self._parameters = OrderedDict()
+        self._parameters: Dict[str, Parameter] = OrderedDict()
 
         # instantiated parameters
-        self._instantiated = OrderedDict()
+        self._instantiated: Dict[str, Any] = OrderedDict()
 
         # sub-pipelines
-        self._pipelines = OrderedDict()
+        self._pipelines: Dict[str, Pipeline] = OrderedDict()
 
         # whether pipeline is currently being optimized
         self.training = False
@@ -165,22 +165,31 @@ class Pipeline:
         params : `dict`
             Flattened dictionary of parameters.
         """
-        # TODO: check for structured params
+
+
+
         if frozen and instantiated:
             msg = "one must choose between `frozen` and `instantiated`."
             raise ValueError(msg)
 
         # initialize dictionary with root parameters
         if instantiated:
-            params = dict(self._instantiated)
+            params = dict(flatten_structured(self._instantiated))
 
         elif frozen:
             params = {
                 n: p.value for n, p in self._parameters.items() if isinstance(p, Frozen)
             }
+            params = dict(flatten_structured(params))
 
         else:
-            params = dict(self._parameters)
+            params = {}
+            for name, param in self._parameters.items():
+                if isinstance(param, StructuredParameter):
+                    for subname, subparam in param.flatten().items():
+                        params[f"{name}>{subname}"] = subparam
+                else:
+                    params[name] = param
 
         # recursively add sub-pipeline parameters
         for pipeline_name, pipeline in self._pipelines.items():
@@ -277,7 +286,7 @@ class Pipeline:
             # - sub-pipeline parameter
             # - a parameter subdict or a list of parameters
             tokens = name.split(">")
-            root_name : str = tokens[0]
+            root_name: str = tokens[0]
             if len(tokens) > 1 and root_name in pipeline_params:
                 # root name is the sub-pipeline name
                 pipeline_name = root_name
@@ -306,6 +315,8 @@ class Pipeline:
         # recursively unflatten structured parameter flattened dictionary
         for name, param in self._parameters.items():
             if not isinstance(param, StructuredParameter):
+                continue
+            if not structured_params[name]:
                 continue
             nested_params[name] = param.unflatten(structured_params[name])
 
@@ -357,7 +368,7 @@ class Pipeline:
             # use provided `trial` to suggest values for parameters
             params = {name: param(name, trial) for name, param in params.items()}
 
-        # un-flatten flattend dictionary
+        # un-flatten flattened dictionary
         return self._unflatten(params)
 
     def initialize(self):

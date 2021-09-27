@@ -28,10 +28,22 @@
 # Hadrien TITEUX - https://github.com/hadware
 
 from abc import ABCMeta, abstractmethod
-from typing import Iterable, Any, Dict, List, Tuple
+from typing import Iterable, Any, Dict, List, Tuple, Union
 
 from optuna.trial import Trial
 
+
+def flatten_structured(param_struc: Union[Dict, List]) \
+        -> Iterable[Tuple[str, Any]]:
+    if isinstance(param_struc, list):
+        param_struc = {str(i): val for i, val in enumerate(param_struc)}
+
+    for name, param in param_struc.items():
+        if isinstance(param, (dict, list)):
+            for subname, suparam in flatten_structured(param):
+                yield f"{name}>{subname}", suparam
+        else:
+            yield name, param
 
 class Parameter(metaclass=ABCMeta):
     """Base hyper-parameter"""
@@ -45,6 +57,10 @@ class StructuredParameter(Parameter):
 
     @abstractmethod
     def unflatten(self, flattened_params: Dict[str, Any]) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def flatten(self) -> Dict[str, Parameter]:
         pass
 
 
@@ -64,6 +80,17 @@ class ParamDict(StructuredParameter):
             assert isinstance(param, Parameter)
             assert not name.isdigit()
         self._params = params
+
+    def flatten(self) -> Dict[str, Parameter]:
+        flattened_params = {}
+        for param_name, param in self._params.items():
+            if isinstance(param, StructuredParameter):
+                for subparam_name, subparam in param.flatten().items():
+                    flattened_params[f"{param_name}>{subparam_name}"] = subparam
+            else:
+                flattened_params[param_name] = param
+
+        return flattened_params
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> Dict[str, Any]:
         params_dict = {}
@@ -107,11 +134,11 @@ class ParamList(StructuredParameter):
         super().__init__()
         for param in params:
             assert isinstance(param, Parameter)
-        self.params = params
+        self._params = params
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> List[Any]:
         params_list: List[Tuple[int, Any]] = []
-        structured_params = {idx: {} for idx, param in enumerate(self.params)
+        structured_params = {idx: {} for idx, param in enumerate(self._params)
                              if isinstance(param, StructuredParameter)}
         params_indices = []
         for name, value in flattened_params.items():
@@ -129,7 +156,7 @@ class ParamList(StructuredParameter):
                 params_list.append((param_idx, value))
 
         # recursively unflatten structured parameter flattened dictionary
-        for idx, param in enumerate(self.params):
+        for idx, param in enumerate(self._params):
             if not isinstance(param, StructuredParameter):
                 continue
             params_list.append((idx, param.unflatten(structured_params[idx])))
@@ -139,12 +166,24 @@ class ParamList(StructuredParameter):
 
         # checking that we have the same amount of parameters in the instance
         # as we have in the flattened param input
-        assert all_idx == list(range(len(self.params)))
+        assert list(all_idx) == list(range(len(self._params)))
 
-        return params
+        return list(params)
+
+    def flatten(self) -> Dict[str, Parameter]:
+        flattened_params = {}
+        for idx, param in enumerate(self._params):
+            if isinstance(param, StructuredParameter):
+                for subparam_name, subparam in param.flatten().items():
+                    flattened_params[f"{idx}>{subparam_name}"] = subparam
+            else:
+                flattened_params[str(idx)] = param
+
+        return flattened_params
 
     def __call__(self, name: str, trial: Trial):
-        return [param(f"{name}>{i}", trial) for i, param in enumerate(self.params)]
+        return [param(f"{name}>{i}", trial) for i, param in enumerate(self._params)]
+
 
 class Categorical(Parameter):
     """Categorical hyper-parameter
