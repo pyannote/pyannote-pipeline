@@ -32,7 +32,7 @@ def test_basic_optimization(target, direction: Direction):
         def __call__(self, data: float) -> float:
             return data + self.param_a + self.param_b
 
-        def loss(self, dataset: np.ndarray, y_preds: float) -> float:
+        def loss(self, data: float, y_preds: float) -> float:
             return y_preds
 
         def get_direction(self) -> Direction:
@@ -55,7 +55,7 @@ def test_structured_list_param_optim(target, direction: Direction):
         def __call__(self, data: float) -> float:
             return sum(self.list_param) + data
 
-        def loss(self, dataset: np.ndarray, y_preds: float) -> float:
+        def loss(self, data: float, y_preds: float) -> float:
             return y_preds
 
         def get_direction(self) -> Direction:
@@ -81,7 +81,7 @@ def test_structured_dict_param_optim(target, direction: Direction):
         def __call__(self, data: float) -> float:
             return data + self.param_dict["param_b"] + self.param_dict["param_a"]
 
-        def loss(self, dataset: np.ndarray, y_preds: float) -> float:
+        def loss(self, data: float, y_preds: float) -> float:
             return y_preds
 
         def get_direction(self) -> Direction:
@@ -107,7 +107,7 @@ def test_nested_structured_param_optim(target, direction: Direction):
         def __call__(self, data: float) -> float:
             return data + self.param_dict["param_a"] + sum(self.param_dict["param_b"])
 
-        def loss(self, dataset: np.ndarray, y_preds: float) -> float:
+        def loss(self, data: float, y_preds: float) -> float:
             return y_preds
 
         def get_direction(self) -> Direction:
