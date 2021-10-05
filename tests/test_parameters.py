@@ -1,4 +1,6 @@
-from pyannote.pipeline.parameter import ParamDict, Uniform, Integer, ParamList, Categorical
+import pytest
+
+from pyannote.pipeline.parameter import ParamDict, Uniform, Integer, ParamList, Categorical, Frozen
 from .utils import FakeTrial
 
 
@@ -39,3 +41,29 @@ def test_nested_params():
 
     assert nested("nested_params", FakeTrial()) == {'param_list': [0.0, 1.0, 2.0],
                                                     'param_cat': 'a'}
+
+
+def test_dict_parameter_freezing():
+    param_dict = ParamDict(param_a=Uniform(0, 1),
+                           param_b=Integer(5, 10),
+                           param_c=ParamDict(param_d=Uniform(0, 2),
+                                             param_e=Uniform(0, 10)))
+    param_dict.freeze({"param_b": 4, "param_c": {"param_d": 1}})
+    _, params = zip(*param_dict.flatten().items())
+    frozen_params = {param.value for param in params if isinstance(param, Frozen)}
+    assert frozen_params == {4, 1}
+
+
+def test_list_parameter_freezing():
+    params_list = ParamList(*[
+        ParamDict(param_a=Uniform(0, 2),
+                  param_b=Uniform(0, 10))
+        for _ in range(5)
+    ])
+
+    with pytest.raises(AssertionError):
+        params_list.freeze([{"param_a": 1, } for _ in range(2)])
+    params_list.freeze([{"param_a": 2} for _ in range(5)])
+    _, params = zip(*params_list.flatten().items())
+    frozen_params = [param.value for param in params if isinstance(param, Frozen)]
+    assert frozen_params == [2] * 5

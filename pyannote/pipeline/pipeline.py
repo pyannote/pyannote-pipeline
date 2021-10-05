@@ -29,7 +29,7 @@
 import warnings
 from collections import OrderedDict
 from pathlib import Path
-from typing import Optional, TextIO, Union, Dict, Any, List, Iterable, Tuple
+from typing import Optional, TextIO, Union, Dict, Any
 
 import yaml
 from filelock import FileLock
@@ -166,8 +166,6 @@ class Pipeline:
             Flattened dictionary of parameters.
         """
 
-
-
         if frozen and instantiated:
             msg = "one must choose between `frozen` and `instantiated`."
             raise ValueError(msg)
@@ -175,12 +173,6 @@ class Pipeline:
         # initialize dictionary with root parameters
         if instantiated:
             params = dict(flatten_structured(self._instantiated))
-
-        elif frozen:
-            params = {
-                n: p.value for n, p in self._parameters.items() if isinstance(p, Frozen)
-            }
-            params = dict(flatten_structured(params))
 
         else:
             params = {}
@@ -190,6 +182,13 @@ class Pipeline:
                         params[f"{name}>{subname}"] = subparam
                 else:
                     params[name] = param
+
+            # if frozen is true, params is filtered for frozen parameters and
+            # the parameters are replaced by their frozen values
+            if frozen:
+                params = {
+                    n: p.value for n, p in params.items() if isinstance(p, Frozen)
+                }
 
         # recursively add sub-pipeline parameters
         for pipeline_name, pipeline in self._pipelines.items():
@@ -404,7 +403,10 @@ class Pipeline:
 
             # instantiate parameter value
             if name in self._parameters:
-                setattr(self, name, Frozen(value))
+                if isinstance(self._parameters[name], StructuredParameter):
+                    self._parameters[name].freeze(value)
+                else:
+                    setattr(self, name, Frozen(value))
                 continue
 
             msg = f"parameter '{name}' does not exist"

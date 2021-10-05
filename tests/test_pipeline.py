@@ -90,3 +90,24 @@ def test_pipeline_nested_parameters():
     fake_params = {'nested_param': [{'param_a': 0.0, 'param_b': 5}, 'a', 50.0]}
 
     pipeline_tester(pl, fake_params)
+
+
+def test_pipeline_freezing():
+    class TestPipeline(Pipeline):
+
+        def __init__(self):
+            super().__init__()
+            self.nested_param = ParamList(
+                ParamDict(param_a=Uniform(0, 1),
+                          param_b=Integer(5, 10),
+                          param_c=ParamDict(param_d=Uniform(0, 2),
+                                            param_e=Uniform(0, 10))),
+                Categorical(["a", "b", "c"]),
+                Uniform(50, 100)
+            )
+
+    pl = TestPipeline()
+    frozen_params = {'nested_param': [{'param_b': 7, 'param_c': {'param_d': 2}}, "a", 70]}
+    pl.instantiate(pl.parameters(FakeTrial()))
+    pl.freeze(frozen_params)
+    assert pl.parameters(frozen=True) == frozen_params

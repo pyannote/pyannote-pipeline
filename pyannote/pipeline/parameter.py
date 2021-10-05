@@ -28,7 +28,7 @@
 # Hadrien TITEUX - https://github.com/hadware
 
 from abc import ABCMeta, abstractmethod
-from typing import Iterable, Any, Dict, List, Tuple, Union, Sequence
+from typing import Iterable, Any, Dict, List, Tuple, Union, Optional
 
 from optuna.trial import Trial
 
@@ -64,6 +64,10 @@ class StructuredParameter(Parameter):
     def flatten(self) -> Dict[str, Parameter]:
         pass
 
+    @abstractmethod
+    def freeze(self, params: Dict):
+        pass
+
 
 class ParamDict(StructuredParameter):
     """A mapping of parameters
@@ -74,13 +78,13 @@ class ParamDict(StructuredParameter):
         A dictionary of parameters
     """
 
-    def __init__(self, **params: Dict[str, Parameter]):
+    def __init__(self, **params: Parameter):
         super().__init__()
         for name, param in params.items():
             assert isinstance(name, str)
             assert isinstance(param, Parameter)
             assert not name.isdigit()
-        self._params = params
+        self._params: Dict[str, Parameter] = params
 
     def flatten(self) -> Dict[str, Parameter]:
         flattened_params = {}
@@ -129,6 +133,14 @@ class ParamDict(StructuredParameter):
 
         return params_dict
 
+    def freeze(self, params: Optional[Dict[str, Any]]):
+        assert isinstance(params, Dict)
+        for name, value in params.items():
+            if isinstance(self._params[name], StructuredParameter):
+                self._params[name].freeze(value)
+            else:
+                self._params[name] = Frozen(value)
+
     def __call__(self, name: str, trial: Trial):
         return {
             param_name: param(f"{name}>{param_name}", trial)
@@ -146,12 +158,11 @@ class ParamList(StructuredParameter):
         A list of parameters
     """
 
-    def __init__(self, *params: Iterable[Parameter]):
+    def __init__(self, *params: Parameter):
         super().__init__()
-        params = list(params)
         for param in params:
             assert isinstance(param, Parameter)
-        self._params = params
+        self._params: List[Parameter] = list(params)
 
     def unflatten(self, flattened_params: Dict[str, Any]) -> List[Any]:
         """Convert flattened dictionary representation of a
@@ -212,6 +223,15 @@ class ParamList(StructuredParameter):
                 flattened_params[str(idx)] = param
 
         return flattened_params
+
+    def freeze(self, params: List):
+        assert isinstance(params, List)
+        assert len(params) == len(self._params)
+        for idx, value in enumerate(params):
+            if isinstance(self._params[idx], StructuredParameter):
+                self._params[idx].freeze(value)
+            else:
+                self._params[idx] = Frozen(value)
 
     def __call__(self, name: str, trial: Trial):
         return [param(f"{name}>{i}", trial) for i, param in enumerate(self._params)]
