@@ -118,11 +118,11 @@ class ParamDict(StructuredParameter):
 
             if len(tokens) > 1 and root_name in structured_params:
                 # if name contains has multiple ">"-separated tokens,
-                # it's a structured "sub"parameter or the parameter `root_name`
+                # it is a structured sub-parameter or the parameter `root_name`
                 subparam_name = ">".join(tokens[1:])
                 structured_params[root_name][subparam_name] = value
             else:
-                # # otherwise, it is a regular parameter of this structured parameter
+                # otherwise, it is a regular parameter of this structured parameter
                 params_dict[name] = value
 
         # recursively unflatten structured parameter flattened dictionary
