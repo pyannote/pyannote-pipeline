@@ -25,29 +25,25 @@
 
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
-
-from typing import Iterable, Optional, Callable, Generator, Union, Dict
-
-from optuna.pruners import BasePruner
-from optuna.samplers import BaseSampler, TPESampler, RandomSampler
-
-from .typing import PipelineInput
-
+# Hadrien TITEUX
 
 import time
+import warnings
+from pathlib import Path
+from typing import Iterable, Optional, Callable, Generator, Union, Dict
+
 import numpy as np
+import optuna.logging
+import optuna.pruners
+import optuna.samplers
+from optuna.exceptions import ExperimentalWarning
+from optuna.pruners import BasePruner
+from optuna.samplers import BaseSampler, TPESampler
+from optuna.trial import Trial, FixedTrial
 from tqdm import tqdm
 
-from pathlib import Path
 from .pipeline import Pipeline
-
-from optuna.trial import Trial, FixedTrial
-import optuna.samplers
-import optuna.pruners
-
-import warnings
-from optuna.exceptions import ExperimentalWarning
-import optuna.logging
+from .typing import PipelineInput
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -66,7 +62,7 @@ class Optimizer:
         there. # TODO -- generate this automatically
     sampler : `str` or sampler instance, optional
         Algorithm for value suggestion. Must be one of "RandomSampler" or
-        "TPESampler", or a sampler instance. Defaults to no "TPESampler".
+        "TPESampler", or a sampler instance. Defaults to "TPESampler".
     pruner : `str` or pruner instance, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner", or a pruner instance.
@@ -79,7 +75,7 @@ class Optimizer:
         db: Optional[Path] = None,
         study_name: Optional[str] = None,
         sampler: Optional[Union[str, BaseSampler]] = None,
-        pruner: Optional[str] = None,
+        pruner: Optional[Union[str, BasePruner]] = None,
     ):
 
         self.pipeline = pipeline
