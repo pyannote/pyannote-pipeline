@@ -122,7 +122,7 @@ class ParamDict(StructuredParameter):
                 subparam_name = ">".join(tokens[1:])
                 structured_params[root_name][subparam_name] = value
             else:
-                # # otherwise, it is a regular parameter of this structured parameter
+                # otherwise, it is a regular parameter of this structured parameter
                 params_dict[name] = value
 
         # recursively unflatten structured parameter flattened dictionary
