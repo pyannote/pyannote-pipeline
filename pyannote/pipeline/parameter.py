@@ -117,7 +117,7 @@ class ParamDict(StructuredParameter):
             root_name: str = tokens[0]
 
             if len(tokens) > 1 and root_name in structured_params:
-                # if name contains has multiple ">"-separated tokens,
+                # if name contains multiple ">"-separated tokens,
                 # it is a structured sub-parameter or the parameter `root_name`
                 subparam_name = ">".join(tokens[1:])
                 structured_params[root_name][subparam_name] = value
