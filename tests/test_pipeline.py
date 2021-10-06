@@ -137,6 +137,6 @@ def test_pipeline_freezing():
 
     pl = TestPipeline()
     frozen_params = {'nested_param': [{'param_b': 7, 'param_c': {'param_d': 2}}, "a", 70]}
-    pl.instantiate(pl.parameters(FakeTrial()))
     pl.freeze(frozen_params)
+    pl.instantiate(pl.parameters(FakeTrial()))
     assert pl.parameters(frozen=True) == frozen_params
