@@ -35,6 +35,34 @@ from optuna.trial import Trial
 
 def flatten_structured(param_struc: Union[Dict, List]) \
         -> Iterable[Tuple[str, Any]]:
+    """Flattens a nested and arbitrary tree of Dicts and Lists. Yields, for
+    each "leaf" value a (nodepath, value) tuple. E.g.:
+
+    Input
+        ~~~~~~~~~~~~~~~~~~~~~
+            param_a: value1
+            param_b:
+                - value2
+                - value3
+                - value4
+            param_c:
+                subparam_a : value5
+                subparam_b : value6
+        ~~~~~~~~~~~~~~~~~~~~~
+
+    would yield the following tuples:
+
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        param_a                     : value1
+        param_b>0                   : value2
+        param_b>1                   : value3
+        param_b>2                   : value4
+        param_c>subparam_a          : value5
+        param_c>subparam_b          : value6
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    This function is recursive and will call itself if any of the child value
+    is a Dict or List."""
     if isinstance(param_struc, list):
         param_struc = {str(i): val for i, val in enumerate(param_struc)}
 
@@ -51,10 +79,31 @@ class Parameter(metaclass=ABCMeta):
 
     @abstractmethod
     def __call__(self, name: str, trial: Trial):
+        """Samples a value from the parameter, for the trial `trial`, and
+        for the parameter name (which should be a unique identifier) `name`.
+
+        Return type depends on the Parameter child class.
+
+        Parameter
+        ---------
+        name : `str`
+            Name of the parameter
+
+        trial: `Trial`
+            `Trial` instance from optuna, from which the parameter values are
+            suggested.
+
+        Returns
+        -------
+        nested_params : `dict`
+        """
         pass
 
 
-class StructuredParameter(Parameter):
+class ParametersCollection(Parameter):
+    """
+    Base class for a structured collection of parameters.
+    """
 
     @abstractmethod
     def unflatten(self, flattened_params: Dict[str, Any]):
@@ -69,7 +118,7 @@ class StructuredParameter(Parameter):
         pass
 
 
-class ParamDict(StructuredParameter):
+class ParamDict(ParametersCollection):
     """A mapping of parameters
 
     Parameters
@@ -89,7 +138,7 @@ class ParamDict(StructuredParameter):
     def flatten(self) -> Dict[str, Parameter]:
         flattened_params = {}
         for param_name, param in self._params.items():
-            if isinstance(param, StructuredParameter):
+            if isinstance(param, ParametersCollection):
                 for subparam_name, subparam in param.flatten().items():
                     flattened_params[f"{param_name}>{subparam_name}"] = subparam
             else:
@@ -111,7 +160,7 @@ class ParamDict(StructuredParameter):
         """
         params_dict = {}
         structured_params = {name: {} for name, param in self._params.items()
-                             if isinstance(param, StructuredParameter)}
+                             if isinstance(param, ParametersCollection)}
         for name, value in flattened_params.items():
             tokens = name.split(">")
             root_name: str = tokens[0]
@@ -127,7 +176,7 @@ class ParamDict(StructuredParameter):
 
         # recursively unflatten structured parameter flattened dictionary
         for name, param in self._params.items():
-            if not isinstance(param, StructuredParameter):
+            if not isinstance(param, ParametersCollection):
                 continue
             params_dict[name] = param.unflatten(structured_params[name])
 
@@ -136,7 +185,7 @@ class ParamDict(StructuredParameter):
     def freeze(self, params: Optional[Dict[str, Any]]):
         assert isinstance(params, Dict)
         for name, value in params.items():
-            if isinstance(self._params[name], StructuredParameter):
+            if isinstance(self._params[name], ParametersCollection):
                 self._params[name].freeze(value)
             else:
                 self._params[name] = Frozen(value)
@@ -149,7 +198,7 @@ class ParamDict(StructuredParameter):
         }
 
 
-class ParamList(StructuredParameter):
+class ParamList(ParametersCollection):
     """A list of parameters
 
     Parameters
@@ -179,7 +228,7 @@ class ParamList(StructuredParameter):
         params_list: List[Tuple[int, Any]] = []
         structured_params: Dict[int, Any] = {
             idx: {} for idx, param in enumerate(self._params)
-            if isinstance(param, StructuredParameter)
+            if isinstance(param, ParametersCollection)
         }
         params_indices = []
         # as with DictParams unflattening, building
@@ -200,7 +249,7 @@ class ParamList(StructuredParameter):
 
         # recursively unflatten structured parameter flattened dictionary
         for idx, param in enumerate(self._params):
-            if not isinstance(param, StructuredParameter):
+            if not isinstance(param, ParametersCollection):
                 continue
             params_list.append((idx, param.unflatten(structured_params[idx])))
 
@@ -216,7 +265,7 @@ class ParamList(StructuredParameter):
     def flatten(self) -> Dict[str, Parameter]:
         flattened_params = {}
         for idx, param in enumerate(self._params):
-            if isinstance(param, StructuredParameter):
+            if isinstance(param, ParametersCollection):
                 for subparam_name, subparam in param.flatten().items():
                     flattened_params[f"{idx}>{subparam_name}"] = subparam
             else:
@@ -228,7 +277,7 @@ class ParamList(StructuredParameter):
         assert isinstance(params, List)
         assert len(params) == len(self._params)
         for idx, value in enumerate(params):
-            if isinstance(self._params[idx], StructuredParameter):
+            if isinstance(self._params[idx], ParametersCollection):
                 self._params[idx].freeze(value)
             else:
                 self._params[idx] = Frozen(value)

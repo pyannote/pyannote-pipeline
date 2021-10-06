@@ -37,7 +37,7 @@ from optuna.trial import Trial
 from pyannote.core import Annotation
 from pyannote.core import Timeline
 
-from .parameter import Parameter, Frozen, StructuredParameter, flatten_structured
+from .parameter import Parameter, Frozen, ParametersCollection, flatten_structured
 from .typing import Direction
 from .typing import PipelineInput
 from .typing import PipelineOutput
@@ -177,7 +177,7 @@ class Pipeline:
         else:
             params = {}
             for name, param in self._parameters.items():
-                if isinstance(param, StructuredParameter):
+                if isinstance(param, ParametersCollection):
                     for subname, subparam in param.flatten().items():
                         params[f"{name}>{subname}"] = subparam
                 else:
@@ -278,7 +278,7 @@ class Pipeline:
 
         pipeline_params = {name: {} for name in self._pipelines}
         structured_params = {name: {} for name, param in self._parameters.items()
-                             if isinstance(param, StructuredParameter)}
+                             if isinstance(param, ParametersCollection)}
         for name, value in flattened_params.items():
             # if name contains has multiple ">"-separated tokens
             # it means that it is either
@@ -313,7 +313,7 @@ class Pipeline:
 
         # recursively unflatten structured parameter flattened dictionary
         for name, param in self._parameters.items():
-            if not isinstance(param, StructuredParameter):
+            if not isinstance(param, ParametersCollection):
                 continue
             if not structured_params[name]:
                 continue
@@ -403,7 +403,7 @@ class Pipeline:
 
             # instantiate parameter value
             if name in self._parameters:
-                if isinstance(self._parameters[name], StructuredParameter):
+                if isinstance(self._parameters[name], ParametersCollection):
                     self._parameters[name].freeze(value)
                 else:
                     setattr(self, name, Frozen(value))
