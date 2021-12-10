@@ -2,6 +2,11 @@
 Changelog
 #########
 
+Version 2.2 (2021-12-10)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add Pipeline.instantiated attribute
+
 Version 2.1 (2021-09-15)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
