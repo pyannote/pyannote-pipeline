@@ -423,6 +423,13 @@ class Pipeline:
 
         return self
 
+    @property
+    def instantiated(self):
+        """Whether pipeline has been instantiated (and therefore can be applied)"""
+        parameters = set(self._flatten(self.parameters()))
+        instantiated = set(self._flatten(self.parameters(instantiated=True)))
+        return parameters == instantiated
+
     def dump_params(
         self,
         params_yml: Path,
