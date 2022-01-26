@@ -26,21 +26,20 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-import warnings
-from collections import OrderedDict
-from pathlib import Path
 from typing import Optional, TextIO, Union, Dict, Any
 
-import yaml
-from filelock import FileLock
-from optuna.trial import Trial
-from pyannote.core import Annotation
-from pyannote.core import Timeline
-
-from .parameter import Parameter, Frozen, ParametersCollection, flatten_structured
-from .typing import Direction
+from pathlib import Path
+from collections import OrderedDict
 from .typing import PipelineInput
 from .typing import PipelineOutput
+from .typing import Direction
+from filelock import FileLock
+import yaml
+import warnings
+
+from pyannote.core import Timeline
+from pyannote.core import Annotation
+from optuna.trial import Trial
 
 
 class Pipeline:
@@ -164,7 +163,7 @@ class Pipeline:
             object.__delattr__(self, name)
 
     def _flattened_parameters(
-            self, frozen: Optional[bool] = False, instantiated: Optional[bool] = False
+        self, frozen: Optional[bool] = False, instantiated: Optional[bool] = False
     ) -> dict:
         """Get flattened dictionary of parameters
 
@@ -190,23 +189,15 @@ class Pipeline:
 
         # initialize dictionary with root parameters
         if instantiated:
-            params = dict(flatten_structured(self._instantiated))
+            params = dict(self._instantiated)
+
+        elif frozen:
+            params = {
+                n: p.value for n, p in self._parameters.items() if isinstance(p, Frozen)
+            }
 
         else:
-            params = {}
-            for name, param in self._parameters.items():
-                if isinstance(param, ParametersCollection):
-                    for subname, subparam in param.flatten().items():
-                        params[f"{name}>{subname}"] = subparam
-                else:
-                    params[name] = param
-
-            # if frozen is true, params is filtered for frozen parameters and
-            # the parameters are replaced by their frozen values
-            if frozen:
-                params = {
-                    n: p.value for n, p in params.items() if isinstance(p, Frozen)
-                }
+            params = dict(self._parameters)
 
         # recursively add sub-pipeline parameters
         for pipeline_name, pipeline in self._pipelines.items():
@@ -219,7 +210,7 @@ class Pipeline:
         return params
 
     def _flatten(self, nested_params: dict) -> dict:
-        """Recursively convert nested dictionary to flattened dictionary
+        """Convert nested dictionary to flattened dictionary
 
         For instance, a nested dictionary like this one:
 
@@ -249,16 +240,10 @@ class Pipeline:
         """
         flattened_params = dict()
         for name, value in nested_params.items():
-            # if it's a list, convert it to a numbered dict
-            if isinstance(value, list):
-                value = {i: subvalue for i, subvalue in enumerate(value)}
-
-            # in case of a dict, recursively flatten the dictionary
             if isinstance(value, dict):
                 for subname, subvalue in self._flatten(value).items():
                     flattened_params[f"{name}>{subname}"] = subvalue
-
-            else:  # else it's already at the root, no need to flatten
+            else:
                 flattened_params[name] = value
         return flattened_params
 
@@ -295,30 +280,17 @@ class Pipeline:
         nested_params = {}
 
         pipeline_params = {name: {} for name in self._pipelines}
-        structured_params = {name: {} for name, param in self._parameters.items()
-                             if isinstance(param, ParametersCollection)}
         for name, value in flattened_params.items():
-            # if name contains has multiple ">"-separated tokens
-            # it means that it is either
-            # - sub-pipeline parameter
-            # - a parameter subdict or a list of parameters
+            # if name contains has multipe ">"-separated tokens
+            # it means that it is a sub-pipeline parameter
             tokens = name.split(">")
-            root_name: str = tokens[0]
-            if len(tokens) > 1 and root_name in pipeline_params:
-                # root name is the sub-pipeline name
-                pipeline_name = root_name
+            if len(tokens) > 1:
+                # read sub-pipeline name
+                pipeline_name = tokens[0]
                 # read parameter name
                 param_name = ">".join(tokens[1:])
                 # update sub-pipeline flattened dictionary
                 pipeline_params[pipeline_name][param_name] = value
-
-            elif len(tokens) > 1 and root_name not in pipeline_params:
-                # root name is the structured parameter name
-                struc_param_name = root_name
-                # read sub parameter name
-                sub_param_name = ">".join(tokens[1:])
-                # update sub-parameter flattened dictionnary
-                structured_params[struc_param_name][sub_param_name] = value
 
             # otherwise, it is an actual parameter of this pipeline
             else:
@@ -329,23 +301,15 @@ class Pipeline:
         for name, pipeline in self._pipelines.items():
             nested_params[name] = pipeline._unflatten(pipeline_params[name])
 
-        # recursively unflatten structured parameter flattened dictionary
-        for name, param in self._parameters.items():
-            if not isinstance(param, ParametersCollection):
-                continue
-            if not structured_params[name]:
-                continue
-            nested_params[name] = param.unflatten(structured_params[name])
-
         return nested_params
 
     def parameters(
-            self,
-            trial: Optional[Trial] = None,
-            frozen: Optional[bool] = False,
-            instantiated: Optional[bool] = False,
+        self,
+        trial: Optional[Trial] = None,
+        frozen: Optional[bool] = False,
+        instantiated: Optional[bool] = False,
     ) -> dict:
-        """Returns nested dictionary of (optionally instantiated) parameters.
+        """Returns nested dictionary of (optionnaly instantiated) parameters.
 
         For a pipeline with one `param`, one sub-pipeline with its own param
         and its own sub-pipeline, it will returns something like:
@@ -424,10 +388,7 @@ class Pipeline:
 
             # instantiate parameter value
             if name in self._parameters:
-                if isinstance(self._parameters[name], ParametersCollection):
-                    self._parameters[name].freeze(value)
-                else:
-                    setattr(self, name, Frozen(value))
+                setattr(self, name, Frozen(value))
                 continue
 
             msg = f"parameter '{name}' does not exist"
@@ -494,10 +455,10 @@ class Pipeline:
         return parameters == instantiated
 
     def dump_params(
-            self,
-            params_yml: Path,
-            params: Optional[dict] = None,
-            loss: Optional[float] = None,
+        self,
+        params_yml: Path,
+        params: Optional[dict] = None,
+        loss: Optional[float] = None,
     ) -> str:
         """Dump parameters to disk
 
