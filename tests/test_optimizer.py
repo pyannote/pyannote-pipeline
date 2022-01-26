@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2021 CNRS
+# Copyright (c) 2018-2022 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ import pytest
 from optuna.samplers import TPESampler
 
 from pyannote.pipeline import Pipeline, Optimizer
-from pyannote.pipeline.parameter import Integer, ParamList, ParamDict
+from pyannote.pipeline.parameter import Integer, ParamDict
 from pyannote.pipeline.typing import Direction
 
 
@@ -71,29 +71,6 @@ def test_basic_optimization(target, direction: Direction):
 
 
 @pytest.mark.parametrize("target, direction", [
-    ({'list_param': [0, 1, 2]}, "maximize"),
-    ({'list_param': [0, 0, 0]}, "minimize")
-])
-def test_structured_list_param_optim(target, direction: Direction):
-    class SumPipeline(Pipeline):
-
-        def __init__(self):
-            super().__init__()
-            self.list_param: List[int] = ParamList(*[Integer(0, i) for i in range(3)])
-
-        def __call__(self, data: float) -> float:
-            return sum(self.list_param) + data
-
-        def loss(self, data: float, y_preds: float) -> float:
-            return y_preds
-
-        def get_direction(self) -> Direction:
-            return direction
-
-    optimizer_tester(pipeline=SumPipeline(), target=target)
-
-
-@pytest.mark.parametrize("target, direction", [
     ({'param_dict': {'param_a': 10, 'param_b': 10}}, "maximize"),
     ({'param_dict': {'param_a': 0, 'param_b': 0}}, "minimize")
 ])
@@ -117,57 +94,3 @@ def test_structured_dict_param_optim(target, direction: Direction):
             return direction
 
     optimizer_tester(pipeline=SumPipeline(), target=target)
-
-
-@pytest.mark.parametrize("target, direction", [
-    ({'param_dict': {'param_a': 10, 'param_b': [2, 2]}}, "maximize"),
-    ({'param_dict': {'param_a': 0, 'param_b': [0, 0]}}, "minimize")
-])
-def test_nested_structured_param_optim(target, direction: Direction):
-    class SumPipeline(Pipeline):
-
-        def __init__(self):
-            super().__init__()
-            self.param_dict = ParamDict(
-                param_a=Integer(0, 10),
-                param_b=ParamList(*[Integer(0, 2), Integer(0, 2)])
-            )
-
-        def __call__(self, data: float) -> float:
-            return data + self.param_dict["param_a"] + sum(self.param_dict["param_b"])
-
-        def loss(self, data: float, y_preds: float) -> float:
-            return y_preds
-
-        def get_direction(self) -> Direction:
-            return direction
-
-    optimizer_tester(pipeline=SumPipeline(), target=target)
-
-
-@pytest.mark.parametrize("target, direction", [
-    ({'param_dict': {'param_a': 5, 'param_b': [2, 2]}}, "maximize"),
-    ({'param_dict': {'param_a': 5, 'param_b': [0, 0]}}, "minimize")
-])
-def test_frozen_param_optim(target, direction: Direction):
-    class SumPipeline(Pipeline):
-
-        def __init__(self):
-            super().__init__()
-            self.param_dict = ParamDict(
-                param_a=Integer(0, 10),
-                param_b=ParamList(*[Integer(0, 2), Integer(0, 2)])
-            )
-
-        def __call__(self, data: float) -> float:
-            return data + self.param_dict["param_a"] + sum(self.param_dict["param_b"])
-
-        def loss(self, data: float, y_preds: float) -> float:
-            return y_preds
-
-        def get_direction(self) -> Direction:
-            return direction
-
-    pl = SumPipeline()
-    pl.freeze({"param_dict": {"param_a": 5}})
-    optimizer_tester(pipeline=pl, target=target)
