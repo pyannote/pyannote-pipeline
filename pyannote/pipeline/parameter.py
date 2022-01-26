@@ -33,7 +33,6 @@ from optuna.trial import Trial
 
 class Parameter:
     """Base hyper-parameter"""
-
     pass
 
 
@@ -60,16 +59,16 @@ class DiscreteUniform(Parameter):
     """Discrete uniform hyper-parameter
 
     The value is sampled from the range [low, high],
-    and the step of discretization is `q`.
+    and the step of discretization is `q`.
 
     Parameters
     ----------
-    low : `float`
+    low : `float`
         Lower endpoint of the range of suggested values.
-        `low` is included in the range.
+        `low` is included in the range.
     high : `float`
         Upper endpoint of the range of suggested values.
-        `high` is included in the range.
+        `high` is included in the range.
     q : `float`
         A step of discretization.
     """
@@ -91,12 +90,12 @@ class Integer(Parameter):
 
     Parameters
     ----------
-    low : `int`
+    low : `int`
         Lower endpoint of the range of suggested values.
-        `low` is included in the range.
+        `low` is included in the range.
     high : `int`
         Upper endpoint of the range of suggested values.
-        `high` is included in the range.
+        `high` is included in the range.
     """
 
     def __init__(self, low: int, high: int):
@@ -115,12 +114,12 @@ class LogUniform(Parameter):
 
     Parameters
     ----------
-    low : `float`
+    low : `float`
         Lower endpoint of the range of suggested values.
-        `low` is included in the range.
+        `low` is included in the range.
     high : `float`
         Upper endpoint of the range of suggested values.
-        `high` is excluded from the range.
+        `high` is excluded from the range.
     """
 
     def __init__(self, low: float, high: float):
@@ -139,12 +138,12 @@ class Uniform(Parameter):
 
     Parameters
     ----------
-    low : `float`
+    low : `float`
         Lower endpoint of the range of suggested values.
-        `low` is included in the range.
+        `low` is included in the range.
     high : `float`
         Upper endpoint of the range of suggested values.
-        `high` is excluded from the range.
+        `high` is excluded from the range.
     """
 
     def __init__(self, low: float, high: float):

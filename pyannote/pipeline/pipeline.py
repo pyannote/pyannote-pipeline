@@ -61,7 +61,7 @@ class Pipeline:
         self.training = False
 
     def __hash__(self):
-        # FIXME -- also keep track of (sub)pipeline attribtes
+        # FIXME -- also keep track of (sub)pipeline attributes
         frozen = self.parameters(frozen=True)
         return hash(tuple(sorted(self._flatten(frozen).items())))
 
