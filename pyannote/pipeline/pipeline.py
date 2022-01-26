@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2021 CNRS
+# Copyright (c) 2018-2022 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,6 @@ from typing import Optional, TextIO, Union
 
 from pathlib import Path
 from collections import OrderedDict
-from .parameter import Parameter, Frozen
 from .typing import PipelineInput
 from .typing import PipelineOutput
 from .typing import Direction
@@ -108,6 +107,9 @@ class Pipeline:
         If `name` is in `_parameters`, store `value` in `_instantiated`.
         """
 
+        # imported here to avoid circular import
+        from .parameter import Parameter
+
         def remove_from(*dicts):
             for d in dicts:
                 if name in d:
@@ -118,6 +120,7 @@ class Pipeline:
         _pipelines = self.__dict__.get("_pipelines")
 
         # if `value` is an instance of `Parameter`, store it in `_parameters`
+
         if isinstance(value, Parameter):
             if _parameters is None:
                 msg = (
@@ -175,6 +178,9 @@ class Pipeline:
         params : `dict`
             Flattened dictionary of parameters.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         if frozen and instantiated:
             msg = "one must choose between `frozen` and `instantiated`."
@@ -363,6 +369,9 @@ class Pipeline:
             Pipeline.
         """
 
+        # imported here to avoid circular imports
+        from .parameter import Frozen
+
         for name, value in params.items():
 
             # recursively freeze sub-pipelines parameters
@@ -399,6 +408,9 @@ class Pipeline:
         self : `Pipeline`
             Instantiated pipeline.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         for name, value in params.items():
 
