@@ -28,7 +28,7 @@
 # Hadrien TITEUX
 
 from pyannote.pipeline import Pipeline
-from pyannote.pipeline.parameter import Uniform, Integer, ParamDict, Categorical
+from pyannote.pipeline.parameter import Uniform, Integer, ParamDict
 from .utils import FakeTrial
 
 
