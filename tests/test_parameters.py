@@ -33,21 +33,7 @@ from .utils import FakeTrial
 
 
 def test_params_dict():
-    params_dict = ParamDict(**{
-        "param_a": Uniform(0, 1),
-        "param_b": Integer(0, 10)
-    })
+    params_dict = ParamDict(**{"param_a": Uniform(0, 1), "param_b": Integer(0, 10)})
 
-    assert params_dict("params_dict", FakeTrial()) == {'param_a': 0.0,
-                                                       'param_b': 0}
+    assert params_dict("params_dict", FakeTrial()) == {"param_a": 0.0, "param_b": 0}
 
-
-def test_dict_parameter_freezing():
-    param_dict = ParamDict(param_a=Uniform(0, 1),
-                           param_b=Integer(5, 10),
-                           param_c=ParamDict(param_d=Uniform(0, 2),
-                                             param_e=Uniform(0, 10)))
-    param_dict.freeze({"param_b": 4, "param_c": {"param_d": 1}})
-    _, params = zip(*param_dict.flatten().items())
-    frozen_params = {param.value for param in params if isinstance(param, Frozen)}
-    assert frozen_params == {4, 1}
