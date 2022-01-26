@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2021 CNRS
+# Copyright (c) 2018-2022 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -60,6 +60,17 @@ class Pipeline:
         # whether pipeline is currently being optimized
         self.training = False
 
+    @property
+    def training(self):
+        return self._training
+
+    @training.setter
+    def training(self, training):
+        self._training = training
+        # recursively set sub-pipeline training attribute
+        for _, pipeline in self._pipelines.items():
+            pipeline.training = training
+
     def __hash__(self):
         # FIXME -- also keep track of (sub)pipeline attributes
         frozen = self.parameters(frozen=True)
@@ -98,6 +109,9 @@ class Pipeline:
         store `value` in `_instantiated`.
         """
 
+        # imported here to avoid circular import
+        from .parameter import Parameter
+
         def remove_from(*dicts):
             for d in dicts:
                 if name in d:
@@ -108,6 +122,7 @@ class Pipeline:
         _pipelines = self.__dict__.get("_pipelines")
 
         # if `value` is an instance of `Parameter`, store it in `_parameters`
+
         if isinstance(value, Parameter):
             if _parameters is None:
                 msg = (
@@ -165,6 +180,9 @@ class Pipeline:
         params : `dict`
             Flattened dictionary of parameters.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         if frozen and instantiated:
             msg = "one must choose between `frozen` and `instantiated`."
@@ -388,6 +406,9 @@ class Pipeline:
             Pipeline.
         """
 
+        # imported here to avoid circular imports
+        from .parameter import Frozen
+
         for name, value in params.items():
 
             # recursively freeze sub-pipelines parameters
@@ -427,6 +448,9 @@ class Pipeline:
         self : `Pipeline`
             Instantiated pipeline.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         for name, value in params.items():
 

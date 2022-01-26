@@ -32,6 +32,9 @@ from typing import Iterable, Any, Dict, List, Tuple, Union, Optional
 
 from optuna.trial import Trial
 
+from .pipeline import Pipeline
+from collections.abc import Mapping
+
 
 def flatten_structured(param_struc: Union[Dict, List]) \
         -> Iterable[Tuple[str, Any]]:
@@ -422,3 +425,28 @@ class Frozen(Parameter):
 
     def __call__(self, name: str, trial: Trial):
         return self.value
+
+
+class ParamDict(Pipeline, Mapping):
+    """Dict-like structured hyper-parameter
+
+    Usage
+    -----
+    >>> params = ParamDict(param1=Uniform(0.0, 1.0), param2=Uniform(-1.0, 1.0))
+    >>> params = ParamDict(**{"param1": Uniform(0.0, 1.0), "param2": Uniform(-1.0, 1.0)})
+    """
+
+    def __init__(self, **params):
+        super().__init__()
+        self.__params = params
+        for param_name, param_value in params.items():
+            setattr(self, param_name, param_value)
+
+    def __len__(self):
+        return len(self.__params)
+
+    def __iter__(self):
+        return iter(self.__params)
+
+    def __getitem__(self, param_name):
+        return getattr(self, param_name)
