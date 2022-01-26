@@ -60,6 +60,17 @@ class Pipeline:
         # whether pipeline is currently being optimized
         self.training = False
 
+    @property
+    def training(self):
+        return self._training
+
+    @training.setter
+    def training(self, training):
+        self._training = training
+        # recursively set sub-pipeline training attribute
+        for _, pipeline in self._pipelines.items():
+            pipeline.training = training
+
     def __hash__(self):
         # FIXME -- also keep track of (sub)pipeline attributes
         frozen = self.parameters(frozen=True)
