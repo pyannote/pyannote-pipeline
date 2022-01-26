@@ -25,6 +25,7 @@
 
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
+# Hadrien TITEUX - https://github.com/hadware
 
 
 from typing import Iterable, Any

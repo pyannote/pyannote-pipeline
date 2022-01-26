@@ -25,25 +25,25 @@
 
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
-
-from typing import Iterable, Optional, Callable, Generator, Union, Dict
-from .typing import PipelineInput
-
+# Hadrien TITEUX
 
 import time
+import warnings
+from pathlib import Path
+from typing import Iterable, Optional, Callable, Generator, Union, Dict
+
 import numpy as np
+import optuna.logging
+import optuna.pruners
+import optuna.samplers
+from optuna.exceptions import ExperimentalWarning
+from optuna.pruners import BasePruner
+from optuna.samplers import BaseSampler, TPESampler
+from optuna.trial import Trial, FixedTrial
 from tqdm import tqdm
 
-from pathlib import Path
 from .pipeline import Pipeline
-
-from optuna.trial import Trial, FixedTrial
-import optuna.samplers
-import optuna.pruners
-
-import warnings
-from optuna.exceptions import ExperimentalWarning
-import optuna.logging
+from .typing import PipelineInput
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -60,12 +60,13 @@ class Optimizer:
     study_name : `str`, optional
         Name of study. In case it already exists, study will continue from
         there. # TODO -- generate this automatically
-    sampler : `str`, optional
+    sampler : `str` or sampler instance, optional
         Algorithm for value suggestion. Must be one of "RandomSampler" or
-        "TPESampler". Defaults to no "TPESampler".
-    pruner : `str`, optional
+        "TPESampler", or a sampler instance. Defaults to "TPESampler".
+    pruner : `str` or pruner instance, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
-        "SuccessiveHalvingPruner". Defaults to no pruning.
+        "SuccessiveHalvingPruner", or a pruner instance.
+        Defaults to no pruning.
     """
 
     def __init__(
@@ -73,8 +74,8 @@ class Optimizer:
         pipeline: Pipeline,
         db: Optional[Path] = None,
         study_name: Optional[str] = None,
-        sampler: Optional[str] = None,
-        pruner: Optional[str] = None,
+        sampler: Optional[Union[str, BaseSampler]] = None,
+        pruner: Optional[Union[str, BasePruner]] = None,
     ):
 
         self.pipeline = pipeline
@@ -86,20 +87,27 @@ class Optimizer:
             self.storage_ = f"sqlite:///{self.db}"
         self.study_name = study_name
 
-        self.sampler = "TPESampler" if sampler is None else sampler
-        try:
-            sampler = getattr(optuna.samplers, self.sampler)()
-        except AttributeError as e:
-            msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
-            raise ValueError(msg)
-
-        self.pruner = pruner
-        if pruner is not None:
+        if isinstance(sampler, BaseSampler):
+            self.sampler = sampler
+        elif isinstance(sampler, str):
             try:
-                pruner = getattr(optuna.pruners, self.pruner)()
+                self.sampler = getattr(optuna.samplers, sampler)()
+            except AttributeError as e:
+                msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
+                raise ValueError(msg)
+        elif sampler is None:
+            self.sampler = TPESampler()
+
+        if isinstance(pruner, BasePruner):
+            self.pruner = pruner
+        elif isinstance(pruner, str):
+            try:
+                self.pruner = getattr(optuna.pruners, pruner)()
             except AttributeError as e:
                 msg = '`pruner` must be one of "MedianPruner" or "SuccessiveHalvingPruner"'
                 raise ValueError(msg)
+        else:
+            self.pruner = None
 
         # generate name of study based on pipeline hash
         # Klass = pipeline.__class__
@@ -109,8 +117,8 @@ class Optimizer:
             study_name=self.study_name,
             load_if_exists=True,
             storage=self.storage_,
-            sampler=sampler,
-            pruner=pruner,
+            sampler=self.sampler,
+            pruner=self.pruner,
             direction=self.pipeline.get_direction(),
         )
 

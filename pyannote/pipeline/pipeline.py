@@ -26,7 +26,7 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import Optional, TextIO, Union
+from typing import Optional, TextIO, Union, Dict, Any
 
 from pathlib import Path
 from collections import OrderedDict
@@ -48,13 +48,13 @@ class Pipeline:
     def __init__(self):
 
         # un-instantiated parameters (= `Parameter` instances)
-        self._parameters = OrderedDict()
+        self._parameters: Dict[str, Parameter] = OrderedDict()
 
         # instantiated parameters
-        self._instantiated = OrderedDict()
+        self._instantiated: Dict[str, Any] = OrderedDict()
 
         # sub-pipelines
-        self._pipelines = OrderedDict()
+        self._pipelines: Dict[str, Pipeline] = OrderedDict()
 
         # whether pipeline is currently being optimized
         self.training = False
@@ -103,8 +103,9 @@ class Pipeline:
         """(Advanced) attribute setter
 
         If `value` is an instance of `Parameter`, store it in `_parameters`.
-        If `value` is an instance of `Pipeline`, store it in `_pipelines`.
-        If `name` is in `_parameters`, store `value` in `_instantiated`.
+        elif `value` is an instance of `Pipeline`, store it in `_pipelines`.
+        elif `value` isn't an instance of `Parameter` and `name` is in `_parameters`,
+        store `value` in `_instantiated`.
         """
 
         # imported here to avoid circular import
@@ -348,7 +349,7 @@ class Pipeline:
             # use provided `trial` to suggest values for parameters
             params = {name: param(name, trial) for name, param in params.items()}
 
-        # un-flatten flattend dictionary
+        # un-flatten flattened dictionary
         return self._unflatten(params)
 
     def initialize(self):

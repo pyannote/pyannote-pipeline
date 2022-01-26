@@ -9,6 +9,7 @@ __pycache__/
 MANIFEST
 .Python
 env/
+venv/
 bin/
 build/
 develop-eggs/
@@ -54,3 +55,6 @@ coverage.xml
 *~
 
 .mypy_cache/*
+
+# Pycharm config files
+.idea/
