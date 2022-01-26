@@ -184,7 +184,7 @@ class ParamDict(Pipeline, Mapping):
     Usage
     -----
     >>> params = ParamDict(param1=Uniform(0.0, 1.0), param2=Uniform(-1.0, 1.0))
-    >>> params = ParamDcit(**{"param1": Uniform(0.0, 1.0), "param2": Uniform(-1.0, 1.0)})
+    >>> params = ParamDict(**{"param1": Uniform(0.0, 1.0), "param2": Uniform(-1.0, 1.0)})
     """
 
     def __init__(self, **params):
