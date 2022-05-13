@@ -40,12 +40,33 @@ from optuna.exceptions import ExperimentalWarning
 from optuna.pruners import BasePruner
 from optuna.samplers import BaseSampler, TPESampler
 from optuna.trial import Trial, FixedTrial
+from rich.progress import Progress, BarColumn, TimeRemainingColumn
 from tqdm import tqdm
 
 from .pipeline import Pipeline
 from .typing import PipelineInput
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+
+class OptimizerProgress(Progress):
+    def get_renderables(self):
+        for task in self.tasks:
+            if task.fields.get("progress_type") == "main":
+                self.columns = (
+                    "Main",
+                    BarColumn(),
+                    "{task.description}",
+                    "Best = {task.fields[best_loss]:.3f}",
+                    "Params = {task.fields[best_params]}",
+                    "Last = {task.fields[last_loss]:.3f}",
+                    TimeRemainingColumn(),
+                )
+
+            if task.fields.get("progress_type") == "trial":
+                self.columns = ("Trial", BarColumn(), TimeRemainingColumn())
+
+            yield self.make_tasks_table([task])
 
 
 class Optimizer:
@@ -139,7 +160,7 @@ class Optimizer:
         return self.pipeline.instantiate(self.best_params)
 
     def get_objective(
-        self, inputs: Iterable[PipelineInput], show_progress: Union[bool, Dict] = False,
+        self, inputs: Iterable[PipelineInput], callback=None,
     ) -> Callable[[Trial], float]:
         """
         Create objective function used by optuna
@@ -148,9 +169,7 @@ class Optimizer:
         ----------
         inputs : `iterable`
             List of inputs to process.
-        show_progress : bool or dict
-            Show within-trial progress bar using tqdm progress bar.
-            Can also be a **kwarg dict passed to tqdm.
+        callback : 
 
         Returns
         -------
@@ -161,9 +180,6 @@ class Optimizer:
         # this is needed for `inputs` that can be only iterated once.
         inputs = list(inputs)
         n_inputs = len(inputs)
-
-        if show_progress == True:
-            show_progress = {"desc": "Current trial", "leave": False, "position": 1}
 
         def objective(trial: Trial) -> float:
             """Compute objective value
@@ -184,17 +200,13 @@ class Optimizer:
                 metric = self.pipeline.get_metric()
             except NotImplementedError as e:
                 metric = None
-                losses = []
 
+            losses = []
             processing_time = []
             evaluation_time = []
 
             # instantiate pipeline with value suggested in current trial
             pipeline = self.pipeline.instantiate(self.pipeline.parameters(trial=trial))
-
-            if show_progress != False:
-                progress_bar = tqdm(total=len(inputs), **show_progress)
-                progress_bar.update(0)
 
             # accumulate loss for each input
             for i, input in enumerate(inputs):
@@ -212,20 +224,18 @@ class Optimizer:
                 # when metric is not available, use loss method instead
                 if metric is None:
                     loss = pipeline.loss(input, output)
-                    losses.append(loss)
 
-                # when metric is available,`input` is expected to be provided
-                # by a `pyannote.database` protocol
                 else:
-                    from pyannote.database import get_annotated
+                    loss = metric(
+                        input["annotation"], output, uem=input.get("annotated", None)
+                    )
 
-                    _ = metric(input["annotation"], output, uem=get_annotated(input))
+                losses.append(loss)
 
                 after_evaluation = time.time()
                 evaluation_time.append(after_evaluation - before_evaluation)
 
-                if show_progress != False:
-                    progress_bar.update(1)
+                callback(i, input, loss)
 
                 if self.pruner is None:
                     continue
@@ -234,12 +244,10 @@ class Optimizer:
                 if trial.should_prune(i):
                     raise optuna.structs.TrialPruned()
 
-            if show_progress != False:
-                progress_bar.close()
-
             trial.set_user_attr("processing_time", sum(processing_time))
             trial.set_user_attr("evaluation_time", sum(evaluation_time))
 
+            # TODO: do something smarter than mean and abs?
             return np.mean(losses) if metric is None else abs(metric)
 
         return objective
@@ -249,7 +257,6 @@ class Optimizer:
         inputs: Iterable[PipelineInput],
         n_iterations: int = 10,
         warm_start: dict = None,
-        show_progress: Union[bool, Dict] = True,
     ) -> dict:
         """Tune pipeline
 
@@ -272,8 +279,6 @@ class Optimizer:
         # pipeline is currently being optimized
         self.pipeline.training = True
 
-        objective = self.get_objective(inputs, show_progress=show_progress)
-
         if warm_start:
             flattened_params = self.pipeline._flatten(warm_start)
 
@@ -281,7 +286,43 @@ class Optimizer:
                 warnings.filterwarnings("ignore", category=ExperimentalWarning)
                 self.study_.enqueue_trial(flattened_params)
 
-        self.study_.optimize(objective, n_trials=n_iterations, timeout=None, n_jobs=1)
+        with OptimizerProgress() as progress:
+
+            main_task = progress.add_task(
+                "main",
+                progress_type="main",
+                total=n_iterations,
+                best_loss=np.NAN,
+                best_params=dict(),
+                last_loss=np.NAN,
+            )
+            trial_task = progress.add_task(
+                "trail", progress_type="trial", total=len(inputs)
+            )
+
+            def trial_callback(i, input, loss):
+                progress.update(trial_task, advance=1.0)
+
+            objective = self.get_objective(inputs, callback=trial_callback)
+
+            def main_callback(study, trial):
+                progress.update(
+                    main_task,
+                    advance=1.0,
+                    best_loss=study.best_value,
+                    # best_params=study.best_params,
+                    last_loss=trial.value,
+                )
+                progress.update(trial_task, completed=0.0)
+                progress.console.print(study.best_params)
+
+            self.study_.optimize(
+                objective,
+                n_trials=n_iterations,
+                timeout=None,
+                n_jobs=1,
+                callbacks=[main_callback],
+            )
 
         # pipeline is no longer being optimized
         self.pipeline.training = False
