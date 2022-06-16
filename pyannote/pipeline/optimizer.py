@@ -41,6 +41,7 @@ from optuna.pruners import BasePruner
 from optuna.samplers import BaseSampler, TPESampler
 from optuna.trial import Trial, FixedTrial
 from tqdm import tqdm
+from scipy.stats import bayes_mvs
 
 from .pipeline import Pipeline
 from .typing import PipelineInput
@@ -240,7 +241,18 @@ class Optimizer:
             trial.set_user_attr("processing_time", sum(processing_time))
             trial.set_user_attr("evaluation_time", sum(evaluation_time))
 
-            return np.mean(losses) if metric is None else abs(metric)
+            if metric is None:
+                if len(np.unique(losses)) == 1:
+                    mean = lower_bound = upper_bound = losses[0]
+                else:
+                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=0.9)
+            else:
+                mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
+
+            if self.pipeline.get_direction() == "minimize":
+                return upper_bound
+            else:
+                return lower_bound
 
         return objective
 
