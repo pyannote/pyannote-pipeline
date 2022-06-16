@@ -2,6 +2,15 @@
 Changelog
 #########
 
+Version 2.3 (2022-06-16)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- BREAKING: optimize loss estimate upper bound instead of average (#42)
+- feat: add tests and typing (#41, @hadware)
+- feat: add ParamDict structured hyper-parameter (#40, @hadware)
+- feat: set sub-pipeline "training" attribute recursively (#39)
+- doc: fix various typos
+
 Version 2.2 (2021-12-10)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
