@@ -242,7 +242,7 @@ class Optimizer:
             trial.set_user_attr("evaluation_time", sum(evaluation_time))
 
             if metric is None:
-                mean, (lower_bound, upper_bound) = bayes_mvs(losses, alpha=0.9)
+                (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=0.9)
             else:
                 mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
 
