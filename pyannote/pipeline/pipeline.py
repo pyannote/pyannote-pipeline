@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2021 CNRS
+# Copyright (c) 2018-2022 CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,11 +26,10 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import Optional, TextIO, Union
+from typing import Optional, TextIO, Union, Dict, Any
 
 from pathlib import Path
 from collections import OrderedDict
-from .parameter import Parameter, Frozen
 from .typing import PipelineInput
 from .typing import PipelineOutput
 from .typing import Direction
@@ -49,19 +48,30 @@ class Pipeline:
     def __init__(self):
 
         # un-instantiated parameters (= `Parameter` instances)
-        self._parameters = OrderedDict()
+        self._parameters: Dict[str, Parameter] = OrderedDict()
 
         # instantiated parameters
-        self._instantiated = OrderedDict()
+        self._instantiated: Dict[str, Any] = OrderedDict()
 
         # sub-pipelines
-        self._pipelines = OrderedDict()
+        self._pipelines: Dict[str, Pipeline] = OrderedDict()
 
         # whether pipeline is currently being optimized
         self.training = False
 
+    @property
+    def training(self):
+        return self._training
+
+    @training.setter
+    def training(self, training):
+        self._training = training
+        # recursively set sub-pipeline training attribute
+        for _, pipeline in self._pipelines.items():
+            pipeline.training = training
+
     def __hash__(self):
-        # FIXME -- also keep track of (sub)pipeline attribtes
+        # FIXME -- also keep track of (sub)pipeline attributes
         frozen = self.parameters(frozen=True)
         return hash(tuple(sorted(self._flatten(frozen).items())))
 
@@ -93,9 +103,13 @@ class Pipeline:
         """(Advanced) attribute setter
 
         If `value` is an instance of `Parameter`, store it in `_parameters`.
-        If `value` is an instance of `Pipeline`, store it in `_pipelines`.
-        If `name` is in `_parameters`, store `value` in `_instantiated`.
+        elif `value` is an instance of `Pipeline`, store it in `_pipelines`.
+        elif `value` isn't an instance of `Parameter` and `name` is in `_parameters`,
+        store `value` in `_instantiated`.
         """
+
+        # imported here to avoid circular import
+        from .parameter import Parameter
 
         def remove_from(*dicts):
             for d in dicts:
@@ -107,6 +121,7 @@ class Pipeline:
         _pipelines = self.__dict__.get("_pipelines")
 
         # if `value` is an instance of `Parameter`, store it in `_parameters`
+
         if isinstance(value, Parameter):
             if _parameters is None:
                 msg = (
@@ -164,6 +179,9 @@ class Pipeline:
         params : `dict`
             Flattened dictionary of parameters.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         if frozen and instantiated:
             msg = "one must choose between `frozen` and `instantiated`."
@@ -331,7 +349,7 @@ class Pipeline:
             # use provided `trial` to suggest values for parameters
             params = {name: param(name, trial) for name, param in params.items()}
 
-        # un-flatten flattend dictionary
+        # un-flatten flattened dictionary
         return self._unflatten(params)
 
     def initialize(self):
@@ -351,6 +369,9 @@ class Pipeline:
         self : `Pipeline`
             Pipeline.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         for name, value in params.items():
 
@@ -388,6 +409,9 @@ class Pipeline:
         self : `Pipeline`
             Instantiated pipeline.
         """
+
+        # imported here to avoid circular imports
+        from .parameter import Frozen
 
         for name, value in params.items():
 
