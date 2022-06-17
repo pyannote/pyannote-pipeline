@@ -250,10 +250,12 @@ class Optimizer:
 
                 # start pruning after at least 10 inputs have been processed
                 # (or half of the inputs if there are less than 20 inputs)
-                if i > min(n_inputs // 2, 10):
+                starts_pruning_after_that_many_inputs = min(n_inputs // 2, 10)
+                if i >= starts_pruning_after_that_many_inputs:
                     upper_bound = self.estimate_upper_bound(pipeline, metric=metric, losses=losses)
-                    trial.report(upper_bound, i)
-                    if trial.should_prune(i):
+                    # pruners expects "step" to start at 0
+                    trial.report(upper_bound, i - starts_pruning_after_that_many_inputs)
+                    if trial.should_prune():
                         raise optuna.structs.TrialPruned()
 
             if show_progress != False:
