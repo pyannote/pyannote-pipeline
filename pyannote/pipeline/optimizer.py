@@ -139,6 +139,23 @@ class Optimizer:
         """Return pipeline instantiated with best parameters so far"""
         return self.pipeline.instantiate(self.best_params)
 
+    @staticmethod
+    def estimate_upper_bound(pipeline, metric = None, losses=None, alpha=0.9):
+
+        if metric is None:
+            if len(np.unique(losses)) == 1:
+                lower_bound = upper_bound = losses[0]
+            else:
+                (_, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=alpha)
+        else:
+            _, (lower_bound, upper_bound) = metric.confidence_interval(alpha=alpha)
+
+        if pipeline.get_direction() == "minimize":
+            return upper_bound
+        else:
+            return lower_bound
+
+
     def get_objective(
         self, inputs: Iterable[PipelineInput], show_progress: Union[bool, Dict] = False,
     ) -> Callable[[Trial], float]:
@@ -183,6 +200,7 @@ class Optimizer:
             # use pyannote.metrics metric when available
             try:
                 metric = self.pipeline.get_metric()
+                losses = None
             except NotImplementedError as e:
                 metric = None
                 losses = []
@@ -219,7 +237,6 @@ class Optimizer:
                 # by a `pyannote.database` protocol
                 else:
                     from pyannote.database import get_annotated
-
                     _ = metric(input["annotation"], output, uem=get_annotated(input))
 
                 after_evaluation = time.time()
@@ -231,28 +248,20 @@ class Optimizer:
                 if self.pruner is None:
                     continue
 
-                trial.report(np.mean(losses) if metric is None else abs(metric), i)
-                if trial.should_prune(i):
-                    raise optuna.structs.TrialPruned()
+                # start pruning after at least 10 inputs have been processed
+                # (or half of the inputs if there are less than 20 inputs)
+                if i > min(n_inputs // 2, 10):
+                    upper_bound = self.estimate_upper_bound(pipeline, metric=metric, losses=losses)
+                    trial.report(upper_bound, i)
+                    if trial.should_prune(i):
+                        raise optuna.structs.TrialPruned()
 
             if show_progress != False:
                 progress_bar.close()
 
             trial.set_user_attr("processing_time", sum(processing_time))
             trial.set_user_attr("evaluation_time", sum(evaluation_time))
-
-            if metric is None:
-                if len(np.unique(losses)) == 1:
-                    mean = lower_bound = upper_bound = losses[0]
-                else:
-                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=0.9)
-            else:
-                mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
-
-            if self.pipeline.get_direction() == "minimize":
-                return upper_bound
-            else:
-                return lower_bound
+            return self.estimate_upper_bound(pipeline, metric=metric, losses=losses)
 
         return objective
 
