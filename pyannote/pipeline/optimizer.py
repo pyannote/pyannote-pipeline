@@ -68,6 +68,9 @@ class Optimizer:
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner", or a pruner instance.
         Defaults to no pruning.
+    seed : `int`, optional
+        Seed value for the random number generator of the sampler. 
+        Defaults to no seed.
     """
 
     def __init__(
@@ -77,6 +80,7 @@ class Optimizer:
         study_name: Optional[str] = None,
         sampler: Optional[Union[str, BaseSampler]] = None,
         pruner: Optional[Union[str, BasePruner]] = None,
+        seed: Optional[int] = None,
     ):
 
         self.pipeline = pipeline
@@ -92,12 +96,12 @@ class Optimizer:
             self.sampler = sampler
         elif isinstance(sampler, str):
             try:
-                self.sampler = getattr(optuna.samplers, sampler)()
+                self.sampler = getattr(optuna.samplers, sampler)(seed=seed)
             except AttributeError as e:
                 msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
                 raise ValueError(msg)
         elif sampler is None:
-            self.sampler = TPESampler()
+            self.sampler = TPESampler(seed=seed)
 
         if isinstance(pruner, BasePruner):
             self.pruner = pruner
