@@ -3,7 +3,7 @@
 
 # The MIT License (MIT)
 
-# Copyright (c) 2018-2020 CNRS
+# Copyright (c) 2018- CNRS
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -88,6 +88,10 @@ Configuration file:
           speech_activity_detection:
               onset: 0.5
               offset: 0.5
+    
+    # pyannote.audio pipelines will run on CPU by default.
+    # use `device` key to send it to GPU.
+    device: cuda
     ...................................................................
 
 "train" mode:
@@ -208,10 +212,16 @@ class Experiment:
         )
         self.pipeline_ = Klass(**self.config_["pipeline"].get("params", {}))
 
-        # freeze  parameters
+        # freeze parameters
         if "freeze" in self.config_:
             params = self.config_["freeze"]
             self.pipeline_.freeze(params)
+
+        # send to device
+        if "device" in self.config_:
+            import torch
+            device = torch.device(self.config_["device"])
+            self.pipeline_.to(device)
 
     def train(
         self,

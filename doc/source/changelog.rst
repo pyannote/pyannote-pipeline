@@ -2,6 +2,12 @@
 Changelog
 #########
 
+Version 2.4 (2023-xx-xx)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat: add "seed" parameter for reproducible optimization
+- feat: add "device" section in configuration file
+
 Version 2.3 (2022-06-16)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
