@@ -38,10 +38,11 @@ Usage:
 
 Common options:
   <database.task.protocol>   Experimental protocol (e.g. "Etape.SpeakerDiarization.TV")
-  --database=<db.yml>        Path to database configuration file.
+  --registry=<db.yml>        Path to, comma-separated, database configuration files.
                              [default: ~/.pyannote/db.yml]
   --subset=<subset>          Set subset. Defaults to 'development' in "train"
                              mode, and to 'test' in "apply" mode.
+  
 "train" mode:
   <experiment_dir>           Set experiment root directory. This script expects
                              a configuration file called "config.yml" to live
@@ -119,7 +120,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 from pyannote.database import FileFinder
-from pyannote.database import get_protocol
+from pyannote.database import registry
 from pyannote.database import get_annotated
 
 from pyannote.core.utils.helper import get_class_by_name
@@ -260,7 +261,7 @@ class Experiment:
         )
         train_dir.mkdir(parents=True, exist_ok=True)
 
-        protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
+        protocol = registry.get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         study_name = "default"
         optimizer = Optimizer(
@@ -366,7 +367,7 @@ class Experiment:
         """
 
         # file generator
-        protocol = get_protocol(protocol_name, preprocessors=self.preprocessors_)
+        protocol = registry.get_protocol(protocol_name, preprocessors=self.preprocessors_)
 
         # load pipeline metric (when available)
         try:
@@ -424,6 +425,9 @@ class Experiment:
 def main():
 
     arguments = docopt(__doc__, version="Tunable pipelines")
+
+    for database_yml in arguments["--registry"].split(","):
+        registry.load_database(database_yml)
 
     protocol_name = arguments["<database.task.protocol>"]
     subset = arguments["--subset"]

@@ -5,8 +5,10 @@ Changelog
 Version 2.4 (2023-xx-xx)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+- BREAKING(cli): switch to latest pyannote.database API
 - feat: add "seed" parameter for reproducible optimization
-- feat: add "device" section in configuration file
+- feat(cli): add "device" section in configuration file
+- feat(cli): add "--registry" option for custom database loading
 
 Version 2.3 (2022-06-16)
 ~~~~~~~~~~~~~~~~~~~~~~~~
