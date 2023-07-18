@@ -58,6 +58,7 @@ Common options:
                              bootstrap the optimization process. In practice,
                              this will simply run a first trial with this set
                              of parameters.
+  --average-case             Optimize for average case instead of worst case.
 
 "apply" mode:
   <train_dir>                Path to the directory containing trained hyper-
@@ -166,7 +167,6 @@ class Experiment:
         return xp
 
     def __init__(self, experiment_dir: Path, training: bool = False):
-
         super().__init__()
 
         self.experiment_dir = experiment_dir
@@ -179,7 +179,6 @@ class Experiment:
         # initialize preprocessors
         preprocessors = {}
         for key, preprocessor in self.config_.get("preprocessors", {}).items():
-
             # preprocessors:
             #    key:
             #       name: package.module.ClassName
@@ -221,6 +220,7 @@ class Experiment:
         # send to device
         if "device" in self.config_:
             import torch
+
             device = torch.device(self.config_["device"])
             self.pipeline_.to(device)
 
@@ -232,6 +232,7 @@ class Experiment:
         n_iterations: int = 1,
         sampler: Optional[str] = None,
         pruner: Optional[str] = None,
+        average_case: bool = False,
     ):
         """Train pipeline
 
@@ -251,6 +252,8 @@ class Experiment:
             Choose sampler between RandomSampler and TPESampler
         pruner : `str`, optional
             Choose between MedianPruner or SuccessiveHalvingPruner.
+        average_case : `bool`, optional
+            Optimise for average case. Defaults to False (i.e. worst case).
         """
         train_dir = Path(
             self.TRAIN_DIR.format(
@@ -261,7 +264,9 @@ class Experiment:
         )
         train_dir.mkdir(parents=True, exist_ok=True)
 
-        protocol = registry.get_protocol(protocol_name, preprocessors=self.preprocessors_)
+        protocol = registry.get_protocol(
+            protocol_name, preprocessors=self.preprocessors_
+        )
 
         study_name = "default"
         optimizer = Optimizer(
@@ -270,6 +275,7 @@ class Experiment:
             study_name=study_name,
             sampler=sampler,
             pruner=pruner,
+            average_case=average_case,
         )
 
         direction = 1 if self.pipeline_.get_direction() == "minimize" else -1
@@ -301,7 +307,6 @@ class Experiment:
         count = itertools.count() if n_iterations < 0 else range(n_iterations)
 
         for i, status in zip(count, iterations):
-
             loss = status["loss"]
 
             if direction * loss < direction * best_loss:
@@ -367,7 +372,9 @@ class Experiment:
         """
 
         # file generator
-        protocol = registry.get_protocol(protocol_name, preprocessors=self.preprocessors_)
+        protocol = registry.get_protocol(
+            protocol_name, preprocessors=self.preprocessors_
+        )
 
         # load pipeline metric (when available)
         try:
@@ -380,12 +387,10 @@ class Experiment:
             output_dir / f"{protocol_name}.{subset}.{self.pipeline_.write_format}"
         )
         with open(output_ext, mode="w") as fp:
-
             files = list(getattr(protocol, subset)())
 
             desc = f"Processing {protocol_name} ({subset})"
             for current_file in tqdm(iterable=files, desc=desc, unit="file"):
-
                 # apply pipeline and dump output to file
                 output = self.pipeline_(current_file)
                 self.pipeline_.write(fp, output)
@@ -423,7 +428,6 @@ class Experiment:
 
 
 def main():
-
     arguments = docopt(__doc__, version="Tunable pipelines")
 
     for database_yml in arguments["--registry"].split(","):
@@ -433,7 +437,6 @@ def main():
     subset = arguments["--subset"]
 
     if arguments["train"]:
-
         if subset is None:
             subset = "development"
 
@@ -449,6 +452,8 @@ def main():
         if pretrained:
             pretrained = Path(pretrained).expanduser().resolve(strict=True)
 
+        average_case = arguments["--average-case"]
+
         experiment_dir = Path(arguments["<experiment_dir>"])
         experiment_dir = experiment_dir.expanduser().resolve(strict=True)
 
@@ -460,10 +465,10 @@ def main():
             pretrained=pretrained,
             sampler=sampler,
             pruner=pruner,
+            average_case=average_case,
         )
 
     if arguments["best"]:
-
         if subset is None:
             subset = "development"
 
@@ -474,7 +479,6 @@ def main():
         experiment.best(protocol_name, subset=subset)
 
     if arguments["apply"]:
-
         if subset is None:
             subset = "test"
 
