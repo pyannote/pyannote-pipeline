@@ -40,8 +40,9 @@ from optuna.exceptions import ExperimentalWarning
 from optuna.pruners import BasePruner
 from optuna.samplers import BaseSampler, TPESampler
 from optuna.trial import Trial, FixedTrial
+from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 from tqdm import tqdm
-from scipy.stats import bayes_mvs
+from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 
 from .pipeline import Pipeline
 from .typing import PipelineInput
@@ -57,7 +58,9 @@ class Optimizer:
     pipeline : `Pipeline`
         Pipeline.
     db : `Path`, optional
-        Path to iteration database on disk.
+        Path to trial database on disk. Use ".sqlite" extension for SQLite
+        backend, and ".journal" for Journal backend (prefered for parallel
+        optimization).
     study_name : `str`, optional
         Name of study. In case it already exists, study will continue from
         there. # TODO -- generate this automatically
@@ -89,7 +92,15 @@ class Optimizer:
         if db is None:
             self.storage_ = None
         else:
-            self.storage_ = f"sqlite:///{self.db}"
+            extension = Path(self.db).suffix
+            if extension == ".db":
+                warnings.warn("Storage with '.db' extension has been deprecated. Use '.sqlite' instead.")
+                self.storage_ = RDBStorage(f"sqlite:///{self.db}") 
+            elif extension == ".sqlite":
+                self.storage_ = RDBStorage(f"sqlite:///{self.db}") 
+            elif extension == ".journal":
+                self.storage_ = JournalStorage(JournalFileStorage(self.db)),
+) 
         self.study_name = study_name
 
         if isinstance(sampler, BaseSampler):
