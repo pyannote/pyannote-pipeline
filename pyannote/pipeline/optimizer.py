@@ -72,7 +72,7 @@ class Optimizer:
         "SuccessiveHalvingPruner", or a pruner instance.
         Defaults to no pruning.
     seed : `int`, optional
-        Seed value for the random number generator of the sampler. 
+        Seed value for the random number generator of the sampler.
         Defaults to no seed.
     """
 
@@ -85,7 +85,6 @@ class Optimizer:
         pruner: Optional[Union[str, BasePruner]] = None,
         seed: Optional[int] = None,
     ):
-
         self.pipeline = pipeline
 
         self.db = db
@@ -94,13 +93,14 @@ class Optimizer:
         else:
             extension = Path(self.db).suffix
             if extension == ".db":
-                warnings.warn("Storage with '.db' extension has been deprecated. Use '.sqlite' instead.")
-                self.storage_ = RDBStorage(f"sqlite:///{self.db}") 
+                warnings.warn(
+                    "Storage with '.db' extension has been deprecated. Use '.sqlite' instead."
+                )
+                self.storage_ = RDBStorage(f"sqlite:///{self.db}")
             elif extension == ".sqlite":
-                self.storage_ = RDBStorage(f"sqlite:///{self.db}") 
+                self.storage_ = RDBStorage(f"sqlite:///{self.db}")
             elif extension == ".journal":
-                self.storage_ = JournalStorage(JournalFileStorage(self.db)),
-) 
+                self.storage_ = JournalStorage(JournalFileStorage(self.db))
         self.study_name = study_name
 
         if isinstance(sampler, BaseSampler):
@@ -155,7 +155,9 @@ class Optimizer:
         return self.pipeline.instantiate(self.best_params)
 
     def get_objective(
-        self, inputs: Iterable[PipelineInput], show_progress: Union[bool, Dict] = False,
+        self,
+        inputs: Iterable[PipelineInput],
+        show_progress: Union[bool, Dict] = False,
     ) -> Callable[[Trial], float]:
         """
         Create objective function used by optuna
@@ -214,7 +216,6 @@ class Optimizer:
 
             # accumulate loss for each input
             for i, input in enumerate(inputs):
-
                 # process input with pipeline
                 # (and keep track of processing time)
                 before_processing = time.time()
@@ -260,7 +261,9 @@ class Optimizer:
                 if len(np.unique(losses)) == 1:
                     mean = lower_bound = upper_bound = losses[0]
                 else:
-                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=0.9)
+                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(
+                        losses, alpha=0.9
+                    )
             else:
                 mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
 
@@ -351,7 +354,6 @@ class Optimizer:
                 self.study_.enqueue_trial(flattened_params)
 
         while True:
-
             # pipeline is currently being optimized
             self.pipeline.training = True
 
