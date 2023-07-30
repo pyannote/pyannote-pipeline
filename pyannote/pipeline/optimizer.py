@@ -100,7 +100,7 @@ class Optimizer:
             elif extension == ".sqlite":
                 self.storage_ = RDBStorage(f"sqlite:///{self.db}")
             elif extension == ".journal":
-                self.storage_ = JournalStorage(JournalFileStorage(self.db))
+                self.storage_ = JournalStorage(JournalFileStorage(f"{self.db}"))
         self.study_name = study_name
 
         if isinstance(sampler, BaseSampler):
