@@ -69,8 +69,10 @@ class Optimizer:
         "SuccessiveHalvingPruner", or a pruner instance.
         Defaults to no pruning.
     seed : `int`, optional
-        Seed value for the random number generator of the sampler. 
+        Seed value for the random number generator of the sampler.
         Defaults to no seed.
+    average_case : `bool`, optional
+        Optimise for average case. Defaults to False (i.e. worst case).
     """
 
     def __init__(
@@ -81,8 +83,8 @@ class Optimizer:
         sampler: Optional[Union[str, BaseSampler]] = None,
         pruner: Optional[Union[str, BasePruner]] = None,
         seed: Optional[int] = None,
+        average_case: bool = True,
     ):
-
         self.pipeline = pipeline
 
         self.db = db
@@ -127,6 +129,8 @@ class Optimizer:
             direction=self.pipeline.get_direction(),
         )
 
+        self.average_case = average_case
+
     @property
     def best_loss(self) -> float:
         """Return best loss so far"""
@@ -144,7 +148,9 @@ class Optimizer:
         return self.pipeline.instantiate(self.best_params)
 
     def get_objective(
-        self, inputs: Iterable[PipelineInput], show_progress: Union[bool, Dict] = False,
+        self,
+        inputs: Iterable[PipelineInput],
+        show_progress: Union[bool, Dict] = False,
     ) -> Callable[[Trial], float]:
         """
         Create objective function used by optuna
@@ -203,7 +209,6 @@ class Optimizer:
 
             # accumulate loss for each input
             for i, input in enumerate(inputs):
-
                 # process input with pipeline
                 # (and keep track of processing time)
                 before_processing = time.time()
@@ -249,14 +254,24 @@ class Optimizer:
                 if len(np.unique(losses)) == 1:
                     mean = lower_bound = upper_bound = losses[0]
                 else:
-                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=0.9)
+                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(
+                        losses, alpha=0.9
+                    )
             else:
                 mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
 
-            if self.pipeline.get_direction() == "minimize":
-                return upper_bound
-            else:
-                return lower_bound
+            if self.average_case:
+                if metric is None:
+                    return mean
+
+                else:
+                    return abs(metric)
+
+            return (
+                upper_bound
+                if self.pipeline.get_direction() == "minimize"
+                else lower_bound
+            )
 
         return objective
 
@@ -340,7 +355,6 @@ class Optimizer:
                 self.study_.enqueue_trial(flattened_params)
 
         while True:
-
             # pipeline is currently being optimized
             self.pipeline.training = True
 
