@@ -271,7 +271,7 @@ class Experiment:
         study_name = "default"
         optimizer = Optimizer(
             self.pipeline_,
-            db=train_dir / "iterations.db",
+            db=train_dir / "trials.journal",
             study_name=study_name,
             sampler=sampler,
             pruner=pruner,
@@ -342,7 +342,7 @@ class Experiment:
 
         study_name = "default"
         optimizer = Optimizer(
-            self.pipeline_, db=train_dir / "iterations.db", study_name=study_name
+            self.pipeline_, db=train_dir / "trials.journal", study_name=study_name
         )
 
         try:
