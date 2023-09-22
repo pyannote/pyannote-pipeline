@@ -202,6 +202,3 @@ class ParamDict(Pipeline, Mapping):
 
     def __getitem__(self, param_name):
         return getattr(self, param_name)
-
-    def __getattr__(self, param_name):
-        return self.__getitem__(param_name)
