@@ -40,8 +40,9 @@ from optuna.exceptions import ExperimentalWarning
 from optuna.pruners import BasePruner
 from optuna.samplers import BaseSampler, TPESampler
 from optuna.trial import Trial, FixedTrial
+from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 from tqdm import tqdm
-from scipy.stats import bayes_mvs
+from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 
 from .pipeline import Pipeline
 from .typing import PipelineInput
@@ -57,7 +58,9 @@ class Optimizer:
     pipeline : `Pipeline`
         Pipeline.
     db : `Path`, optional
-        Path to iteration database on disk.
+        Path to trial database on disk. Use ".sqlite" extension for SQLite
+        backend, and ".journal" for Journal backend (prefered for parallel
+        optimization).
     study_name : `str`, optional
         Name of study. In case it already exists, study will continue from
         there. # TODO -- generate this automatically
@@ -68,6 +71,11 @@ class Optimizer:
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner", or a pruner instance.
         Defaults to no pruning.
+    seed : `int`, optional
+        Seed value for the random number generator of the sampler.
+        Defaults to no seed.
+    average_case : `bool`, optional
+        Optimise for average case. Defaults to False (i.e. worst case).
     """
 
     def __init__(
@@ -77,27 +85,37 @@ class Optimizer:
         study_name: Optional[str] = None,
         sampler: Optional[Union[str, BaseSampler]] = None,
         pruner: Optional[Union[str, BasePruner]] = None,
+        seed: Optional[int] = None,
+        average_case: bool = True,
     ):
-
         self.pipeline = pipeline
 
         self.db = db
         if db is None:
             self.storage_ = None
         else:
-            self.storage_ = f"sqlite:///{self.db}"
+            extension = Path(self.db).suffix
+            if extension == ".db":
+                warnings.warn(
+                    "Storage with '.db' extension has been deprecated. Use '.sqlite' instead."
+                )
+                self.storage_ = RDBStorage(f"sqlite:///{self.db}")
+            elif extension == ".sqlite":
+                self.storage_ = RDBStorage(f"sqlite:///{self.db}")
+            elif extension == ".journal":
+                self.storage_ = JournalStorage(JournalFileStorage(f"{self.db}"))
         self.study_name = study_name
 
         if isinstance(sampler, BaseSampler):
             self.sampler = sampler
         elif isinstance(sampler, str):
             try:
-                self.sampler = getattr(optuna.samplers, sampler)()
+                self.sampler = getattr(optuna.samplers, sampler)(seed=seed)
             except AttributeError as e:
                 msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
                 raise ValueError(msg)
         elif sampler is None:
-            self.sampler = TPESampler()
+            self.sampler = TPESampler(seed=seed)
 
         if isinstance(pruner, BasePruner):
             self.pruner = pruner
@@ -123,6 +141,8 @@ class Optimizer:
             direction=self.pipeline.get_direction(),
         )
 
+        self.average_case = average_case
+
     @property
     def best_loss(self) -> float:
         """Return best loss so far"""
@@ -140,7 +160,9 @@ class Optimizer:
         return self.pipeline.instantiate(self.best_params)
 
     def get_objective(
-        self, inputs: Iterable[PipelineInput], show_progress: Union[bool, Dict] = False,
+        self,
+        inputs: Iterable[PipelineInput],
+        show_progress: Union[bool, Dict] = False,
     ) -> Callable[[Trial], float]:
         """
         Create objective function used by optuna
@@ -199,7 +221,6 @@ class Optimizer:
 
             # accumulate loss for each input
             for i, input in enumerate(inputs):
-
                 # process input with pipeline
                 # (and keep track of processing time)
                 before_processing = time.time()
@@ -245,14 +266,24 @@ class Optimizer:
                 if len(np.unique(losses)) == 1:
                     mean = lower_bound = upper_bound = losses[0]
                 else:
-                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(losses, alpha=0.9)
+                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(
+                        losses, alpha=0.9
+                    )
             else:
                 mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
 
-            if self.pipeline.get_direction() == "minimize":
-                return upper_bound
-            else:
-                return lower_bound
+            if self.average_case:
+                if metric is None:
+                    return mean
+
+                else:
+                    return abs(metric)
+
+            return (
+                upper_bound
+                if self.pipeline.get_direction() == "minimize"
+                else lower_bound
+            )
 
         return objective
 
@@ -336,7 +367,6 @@ class Optimizer:
                 self.study_.enqueue_trial(flattened_params)
 
         while True:
-
             # pipeline is currently being optimized
             self.pipeline.training = True
 
