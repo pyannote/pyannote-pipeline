@@ -2,7 +2,7 @@
 Changelog
 #########
 
-Version 3.0.0 (2023-09-22)
+Version 3.0.1 (2023-09-22)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - BREAKING(cli): switch to latest pyannote.database API
