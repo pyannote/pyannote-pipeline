@@ -2,13 +2,16 @@
 Changelog
 #########
 
-Version 2.4 (2023-xx-xx)
-~~~~~~~~~~~~~~~~~~~~~~~~
+Version 3.0.0 (2023-09-22)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - BREAKING(cli): switch to latest pyannote.database API
 - feat: add "seed" parameter for reproducible optimization
 - feat(cli): add "device" section in configuration file
 - feat(cli): add "--registry" option for custom database loading
+- feat(cli): add "--average-case" option to optimize for average case
+- setup: switch to optuna 3.1+
+- feat: add support for optuna Journal storage
 
 Version 2.3 (2022-06-16)
 ~~~~~~~~~~~~~~~~~~~~~~~~
