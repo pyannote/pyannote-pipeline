@@ -42,7 +42,7 @@ Common options:
                              [default: ~/.pyannote/db.yml]
   --subset=<subset>          Set subset. Defaults to 'development' in "train"
                              mode, and to 'test' in "apply" mode.
-  
+
 "train" mode:
   <experiment_dir>           Set experiment root directory. This script expects
                              a configuration file called "config.yml" to live
@@ -83,6 +83,12 @@ Configuration file:
        audio: ~/.pyannote/db.yml   # load template from YAML file
        video: ~/videos/{uri}.mp4   # define template directly
 
+    # filters can be used to filter out some files from the protocol
+    # (e.g. to only keep files with a specific number of speakers)
+    filters:
+        pyannote.audio.utils.protocol.FilterByNumberOfSpeakers:
+            num_speakers: 2
+
     # one can freeze some hyper-parameters if needed (e.g. when
     # only part of the pipeline needs to be updated)
     freeze:
@@ -90,7 +96,7 @@ Configuration file:
           speech_activity_detection:
               onset: 0.5
               offset: 0.5
-    
+
     # pyannote.audio pipelines will run on CPU by default.
     # use `device` key to send it to GPU.
     device: cuda
@@ -205,6 +211,17 @@ class Experiment:
 
         self.preprocessors_ = preprocessors
 
+        # initialize filters
+        filters = []
+        for key, params in self.config_.get("filters", {}).items():
+            Klass = get_class_by_name(key)
+            filters.append(Klass(**params))
+
+        def all_filters(i) -> bool:
+            return all(f(i) for f in filters)
+
+        self.filters_ = all_filters
+
         # initialize pipeline
         pipeline_name = self.config_["pipeline"]["name"]
         Klass = get_class_by_name(
@@ -295,7 +312,8 @@ class Experiment:
         else:
             warm_start = None
 
-        inputs = list(getattr(protocol, subset)())
+        inputs = list(filter(self.filters_, getattr(protocol, subset)()))
+
         iterations = optimizer.tune_iter(
             inputs, warm_start=warm_start, show_progress=True
         )
