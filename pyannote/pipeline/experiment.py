@@ -64,6 +64,8 @@ Common options:
   <train_dir>                Path to the directory containing trained hyper-
                              parameters (i.e. the output of "train" mode).
 
+  --use-filter               Apply pipeline only to files that pass the filter.
+
 Configuration file:
     The configuration of each experiment is described in a file called
     <experiment_dir>/config.yml that describes the pipeline.
@@ -517,6 +519,8 @@ def main():
         if subset is None:
             subset = "test"
 
+        use_filter = arguments["--use-filter"]
+
         train_dir = Path(arguments["<train_dir>"])
         train_dir = train_dir.expanduser().resolve(strict=True)
         experiment = Experiment.from_train_dir(train_dir, training=False)
@@ -527,4 +531,6 @@ def main():
             )
         )
 
-        experiment.apply(protocol_name, output_dir, subset=subset)
+        experiment.apply(
+            protocol_name, output_dir, subset=subset, use_filter=use_filter
+        )
