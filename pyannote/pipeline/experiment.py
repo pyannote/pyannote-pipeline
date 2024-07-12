@@ -377,7 +377,11 @@ class Experiment:
         print(content)
 
     def apply(
-        self, protocol_name: str, output_dir: Path, subset: Optional[str] = "test"
+        self,
+        protocol_name: str,
+        output_dir: Path,
+        subset: Optional[str] = "test",
+        use_filter: bool = False,
     ):
         """Apply current best pipeline
 
@@ -401,11 +405,20 @@ class Experiment:
             metric = None
 
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_ext = (
-            output_dir / f"{protocol_name}.{subset}.{self.pipeline_.write_format}"
-        )
+        if use_filter:
+            output_ext = (
+                output_dir
+                / f"{protocol_name}.{subset}_INCOMPLETE.{self.pipeline_.write_format}"
+            )
+        else:
+            output_ext = (
+                output_dir / f"{protocol_name}.{subset}.{self.pipeline_.write_format}"
+            )
+
         with open(output_ext, mode="w") as fp:
             files = list(getattr(protocol, subset)())
+            if use_filter:
+                files = filter(self.filters_, files)
 
             desc = f"Processing {protocol_name} ({subset})"
             for current_file in tqdm(iterable=files, desc=desc, unit="file"):
@@ -440,7 +453,11 @@ class Experiment:
             print(msg)
             return
 
-        output_eval = output_dir / f"{protocol_name}.{subset}.eval"
+        if use_filter:
+            output_eval = output_dir / f"{protocol_name}.{subset}_INCOMPLETE.eval"
+        else:
+            output_eval = output_dir / f"{protocol_name}.{subset}.eval"
+
         with open(output_eval, "w") as fp:
             fp.write(str(metric))
 
