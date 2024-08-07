@@ -43,6 +43,7 @@ from optuna.trial import Trial, FixedTrial
 from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 from tqdm import tqdm
 from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
+from scipy.stats import bayes_mvs
 
 from .pipeline import Pipeline
 from .typing import PipelineInput
