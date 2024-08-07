@@ -254,7 +254,7 @@ class Optimizer:
 
                 trial.report(np.mean(losses) if metric is None else abs(metric), i)
                 if trial.should_prune():
-                    raise optuna.structs.TrialPruned()
+                    raise optuna.TrialPruned()
 
             if show_progress != False:
                 progress_bar.close()
