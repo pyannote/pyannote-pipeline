@@ -86,7 +86,7 @@ class Optimizer:
         sampler: Optional[Union[str, BaseSampler]] = None,
         pruner: Optional[Union[str, BasePruner]] = None,
         seed: Optional[int] = None,
-        average_case: bool = True,
+        average_case: bool = False,
     ):
         self.pipeline = pipeline
 
