@@ -75,7 +75,7 @@ class Optimizer:
         Seed value for the random number generator of the sampler.
         Defaults to no seed.
     average_case : `bool`, optional
-        Optimise for average case. Defaults to False (i.e. worst case).
+        Optimise for average case if True, worst case otherwise. Default to True.
     """
 
     def __init__(
@@ -86,7 +86,7 @@ class Optimizer:
         sampler: Optional[Union[str, BaseSampler]] = None,
         pruner: Optional[Union[str, BasePruner]] = None,
         seed: Optional[int] = None,
-        average_case: bool = False,
+        average_case: bool = True,
     ):
         self.pipeline = pipeline
 
