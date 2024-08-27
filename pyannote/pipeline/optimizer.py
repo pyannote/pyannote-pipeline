@@ -75,7 +75,8 @@ class Optimizer:
         Seed value for the random number generator of the sampler.
         Defaults to no seed.
     average_case : `bool`, optional
-        Optimise for average case. Defaults to False (i.e. worst case).
+        Optimize for average case (default). 
+        Set to False to optimize for worst case.
     """
 
     def __init__(
