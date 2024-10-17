@@ -2,6 +2,12 @@
 Changelog
 #########
 
+develop
+~~~~~~~~
+
+- feat: add "--use-filter" option to filter training/validation files 
+
+
 Version 3.0.1 (2023-09-22)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
