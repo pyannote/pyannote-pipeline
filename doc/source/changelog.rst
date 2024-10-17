@@ -2,6 +2,11 @@
 Changelog
 #########
 
+develop
+~~~~~~~~
+
+- fix: fix missing `scipy` import (#54, @arxaqapi)
+
 Version 3.0.1 (2023-09-22)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
