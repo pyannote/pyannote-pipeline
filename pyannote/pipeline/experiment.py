@@ -42,7 +42,7 @@ Common options:
                              [default: ~/.pyannote/db.yml]
   --subset=<subset>          Set subset. Defaults to 'development' in "train"
                              mode, and to 'test' in "apply" mode.
-  
+
 "train" mode:
   <experiment_dir>           Set experiment root directory. This script expects
                              a configuration file called "config.yml" to live
@@ -64,6 +64,8 @@ Common options:
   <train_dir>                Path to the directory containing trained hyper-
                              parameters (i.e. the output of "train" mode).
 
+  --use-filter               Apply pipeline only to files that pass the filter.
+
 Configuration file:
     The configuration of each experiment is described in a file called
     <experiment_dir>/config.yml that describes the pipeline.
@@ -83,6 +85,12 @@ Configuration file:
        audio: ~/.pyannote/db.yml   # load template from YAML file
        video: ~/videos/{uri}.mp4   # define template directly
 
+    # filters can be used to filter out some files from the protocol
+    # (e.g. to only keep files with a specific number of speakers)
+    filters:
+        pyannote.audio.utils.protocol.FilterByNumberOfSpeakers:
+            num_speakers: 2
+
     # one can freeze some hyper-parameters if needed (e.g. when
     # only part of the pipeline needs to be updated)
     freeze:
@@ -90,7 +98,7 @@ Configuration file:
           speech_activity_detection:
               onset: 0.5
               offset: 0.5
-    
+
     # pyannote.audio pipelines will run on CPU by default.
     # use `device` key to send it to GPU.
     device: cuda
@@ -205,6 +213,17 @@ class Experiment:
 
         self.preprocessors_ = preprocessors
 
+        # initialize filters
+        filters = []
+        for key, params in self.config_.get("filters", {}).items():
+            Klass = get_class_by_name(key)
+            filters.append(Klass(**params))
+
+        def all_filters(i) -> bool:
+            return all(f(i) for f in filters)
+
+        self.filters_ = all_filters
+
         # initialize pipeline
         pipeline_name = self.config_["pipeline"]["name"]
         Klass = get_class_by_name(
@@ -295,7 +314,8 @@ class Experiment:
         else:
             warm_start = None
 
-        inputs = list(getattr(protocol, subset)())
+        inputs = list(filter(self.filters_, getattr(protocol, subset)()))
+
         iterations = optimizer.tune_iter(
             inputs, warm_start=warm_start, show_progress=True
         )
@@ -359,7 +379,11 @@ class Experiment:
         print(content)
 
     def apply(
-        self, protocol_name: str, output_dir: Path, subset: Optional[str] = "test"
+        self,
+        protocol_name: str,
+        output_dir: Path,
+        subset: Optional[str] = "test",
+        use_filter: bool = False,
     ):
         """Apply current best pipeline
 
@@ -383,11 +407,20 @@ class Experiment:
             metric = None
 
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_ext = (
-            output_dir / f"{protocol_name}.{subset}.{self.pipeline_.write_format}"
-        )
+        if use_filter:
+            output_ext = (
+                output_dir
+                / f"{protocol_name}.{subset}_INCOMPLETE.{self.pipeline_.write_format}"
+            )
+        else:
+            output_ext = (
+                output_dir / f"{protocol_name}.{subset}.{self.pipeline_.write_format}"
+            )
+
         with open(output_ext, mode="w") as fp:
             files = list(getattr(protocol, subset)())
+            if use_filter:
+                files = filter(self.filters_, files)
 
             desc = f"Processing {protocol_name} ({subset})"
             for current_file in tqdm(iterable=files, desc=desc, unit="file"):
@@ -422,7 +455,11 @@ class Experiment:
             print(msg)
             return
 
-        output_eval = output_dir / f"{protocol_name}.{subset}.eval"
+        if use_filter:
+            output_eval = output_dir / f"{protocol_name}.{subset}_INCOMPLETE.eval"
+        else:
+            output_eval = output_dir / f"{protocol_name}.{subset}.eval"
+
         with open(output_eval, "w") as fp:
             fp.write(str(metric))
 
@@ -482,6 +519,8 @@ def main():
         if subset is None:
             subset = "test"
 
+        use_filter = arguments["--use-filter"]
+
         train_dir = Path(arguments["<train_dir>"])
         train_dir = train_dir.expanduser().resolve(strict=True)
         experiment = Experiment.from_train_dir(train_dir, training=False)
@@ -492,4 +531,6 @@ def main():
             )
         )
 
-        experiment.apply(protocol_name, output_dir, subset=subset)
+        experiment.apply(
+            protocol_name, output_dir, subset=subset, use_filter=use_filter
+        )

@@ -43,6 +43,7 @@ from optuna.trial import Trial, FixedTrial
 from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 from tqdm import tqdm
 from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
+from scipy.stats import bayes_mvs
 
 from .pipeline import Pipeline
 from .typing import PipelineInput
@@ -75,7 +76,8 @@ class Optimizer:
         Seed value for the random number generator of the sampler.
         Defaults to no seed.
     average_case : `bool`, optional
-        Optimise for average case. Defaults to False (i.e. worst case).
+        Optimize for average case (default). 
+        Set to False to optimize for worst case.
     """
 
     def __init__(

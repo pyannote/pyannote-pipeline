@@ -2,6 +2,12 @@
 Changelog
 #########
 
+Version 3.1.0 (2025-01-12)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- fix: fix missing `scipy` import (#54, @arxaqapi)
+- feat: add "--use-filter" option to filter training/validation files 
+
 Version 3.0.1 (2023-09-22)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
