@@ -2,16 +2,11 @@
 Changelog
 #########
 
-Version 3.1.1 (2025-02-07)
+Version 3.1.2 (2025-02-07)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - fix: should_prune() takes no argument
 - fix: make `Optimizer.best_loss`` return infinity with no trial
-
-
-Version 3.1.0 (2025-01-12)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 - fix: fix missing `scipy` import (#54, @arxaqapi)
 - feat: add "--use-filter" option to filter training/validation files 
 
