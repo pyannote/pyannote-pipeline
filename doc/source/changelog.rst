@@ -2,6 +2,13 @@
 Changelog
 #########
 
+Version 3.1.1 (2025-02-07)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- fix: should_prune() takes no argument
+- fix: make `Optimizer.best_loss`` return infinity with no trial
+
+
 Version 3.1.0 (2025-01-12)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

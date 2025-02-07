@@ -76,7 +76,7 @@ class Optimizer:
         Seed value for the random number generator of the sampler.
         Defaults to no seed.
     average_case : `bool`, optional
-        Optimize for average case (default). 
+        Optimize for average case (default).
         Set to False to optimize for worst case.
     """
 
@@ -148,7 +148,12 @@ class Optimizer:
     @property
     def best_loss(self) -> float:
         """Return best loss so far"""
-        return self.study_.best_value
+        try:
+            best_value = self.study_.best_value
+        except Exception:
+            direction: int = 1 if self.pipeline.get_direction() == "minimize" else -1
+            best_value = direction * np.inf
+        return best_value
 
     @property
     def best_params(self) -> dict:
@@ -255,8 +260,8 @@ class Optimizer:
                     continue
 
                 trial.report(np.mean(losses) if metric is None else abs(metric), i)
-                if trial.should_prune(i):
-                    raise optuna.structs.TrialPruned()
+                if trial.should_prune():
+                    raise optuna.TrialPruned()
 
             if show_progress != False:
                 progress_bar.close()
