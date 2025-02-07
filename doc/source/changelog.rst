@@ -2,7 +2,7 @@
 Changelog
 #########
 
-Version 3.1.1 (2025-xx-xx)
+Version 3.1.1 (2025-02-07)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - fix: should_prune() takes no argument
