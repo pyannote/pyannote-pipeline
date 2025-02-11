@@ -26,12 +26,11 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
+import importlib.metadata
 
-from ._version import get_versions
-
-__version__ = get_versions()["version"]
-del get_versions
-
+__version__ = importlib.metadata.version("pyannote-pipeline")
 
 from .pipeline import Pipeline
 from .optimizer import Optimizer
+
+__all__ = ["Pipeline", "Optimizer"]
