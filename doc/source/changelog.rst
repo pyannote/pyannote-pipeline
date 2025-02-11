@@ -2,6 +2,14 @@
 Changelog
 #########
 
+Unreleased
+~~~~~~~~~~
+
+- BREAKING: drop support to `Python` < 3.10
+- BREAKING: switch to native namespace package 
+- BREAKING: remove `pyannote.pipeline.blocks` submodule
+- setup: switch to `uv`
+
 Version 3.1.2 (2025-02-07)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
