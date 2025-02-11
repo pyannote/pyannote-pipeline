@@ -42,8 +42,6 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
-    "matplotlib.sphinxext.plot_directive",
-    "IPython.sphinxext.ipython_directive",
 ]
 
 
@@ -68,15 +66,15 @@ templates_path = ["_templates"]
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+source_suffix = {".rst": "restructuredtext"}
 
 # The master toctree document.
 master_doc = "index"
 
 # General information about the project.
-project = u"pyannote.pipeline"
-copyright = u"2018, CNRS"
-author = u"Hervé Bredin"
+project = "pyannote.pipeline"
+copyright = "2017, CNRS"
+author = "Hervé Bredin"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -94,7 +92,7 @@ release = pyannote.pipeline.__version__
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -113,10 +111,7 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-import sphinx_rtd_theme
-
 html_theme = "sphinx_rtd_theme"
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -133,7 +128,7 @@ html_static_path = ["_static"]
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "pyannotecoredoc"
+htmlhelp_basename = "pyannotepipelinedoc"
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -160,8 +155,8 @@ latex_documents = [
     (
         master_doc,
         "pyannotepipeline.tex",
-        u"pyannote.pipeline Documentation",
-        u"Hervé Bredin",
+        "pyannote.pipeline Documentation",
+        "Hervé Bredin",
         "manual",
     ),
 ]
@@ -172,7 +167,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, "pyannotepipeline", u"pyannote.pipeline Documentation", [author], 1)
+    (master_doc, "pyannotepipeline", "pyannote.pipeline Documentation", [author], 1)
 ]
 
 
@@ -185,7 +180,7 @@ texinfo_documents = [
     (
         master_doc,
         "pyannotepipeline",
-        u"pyannote.pipeline Documentation",
+        "pyannote.pipeline Documentation",
         author,
         "pyannotepipeline",
         "One line description of project.",
@@ -194,7 +189,8 @@ texinfo_documents = [
 ]
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"https://docs.python.org/": None}
-
-
-ipython_savefig_dir = "../../build/html/_static"
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/", None),
+    "pyannote.core": ("https://pyannote.github.io/pyannote-core", None),
+    "pyannote.database": ("https://pyannote.github.io/pyannote-database", None),
+}

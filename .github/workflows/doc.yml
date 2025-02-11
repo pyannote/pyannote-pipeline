@@ -1,0 +1,33 @@
+name: Documentation
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+    - name: Install the project
+      run: uv sync --extra doc
+  
+    - name: Build documentation
+      run: |
+        make --directory=doc html
+        touch ./doc/build/html/.nojekyll
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./doc/build/html
