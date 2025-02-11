@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# pyannote.core documentation build configuration file, created by
+# pyannote.pipeline documentation build configuration file, created by
 # sphinx-quickstart on Tue Jan 24 15:45:55 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -17,7 +17,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 
-# allow pyannote.core import
+# allow pyannote.pipeline import
 import os
 import sys
 
