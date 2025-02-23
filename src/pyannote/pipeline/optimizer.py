@@ -30,7 +30,7 @@
 import time
 import warnings
 from pathlib import Path
-from typing import Iterable, Optional, Callable, Generator, Union, Dict
+from typing import Iterable, Optional, Callable, Generator, Mapping, Union, Dict
 
 import numpy as np
 import optuna.logging
@@ -231,7 +231,16 @@ class Optimizer:
                 # process input with pipeline
                 # (and keep track of processing time)
                 before_processing = time.time()
-                output = pipeline(input)
+
+                # get optional kwargs to be passed to the pipeline
+                # (e.g. num_speakers for speaker diarization). they
+                # must be stored in a 'pipeline_kwargs' key in the
+                # `input` dictionary.
+                if isinstance(input, Mapping):
+                    pipeline_kwargs = input.get("pipeline_kwargs", {})
+                else:
+                    pipeline_kwargs = {}
+                output = pipeline(input, **pipeline_kwargs)
                 after_processing = time.time()
                 processing_time.append(after_processing - before_processing)
 
