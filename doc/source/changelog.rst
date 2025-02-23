@@ -2,6 +2,11 @@
 Changelog
 #########
 
+Version 4.0.0rc2 (2025-02-23)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- feat(optimize): add option to pass keyword arguments to pipeline during optimization
+
 Version 4.0.0rc1 (2025-02-11)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
