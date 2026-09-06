@@ -26,7 +26,7 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import TypeVar
+from typing import Sequence, TypeVar, Union
 
 PipelineInput = TypeVar("PipelineInput")
 PipelineOutput = TypeVar("PipelineOutput")
@@ -36,3 +36,5 @@ try:
 except ImportError:
     from typing_extensions import Literal
 Direction = Literal["minimize", "maximize"]
+Directions = Union[Direction, Sequence[Direction]]
+Objective = Union[float, Sequence[float]]

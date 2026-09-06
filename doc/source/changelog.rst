@@ -2,6 +2,14 @@
 Changelog
 #########
 
+Next version
+~~~~~~~~~~~~
+
+- feat(optimize): add multi-objective optimization and Pareto front support
+- fix(optimize): switch to Optuna's supported journal file backend
+- setup: update minimum Optuna version to 4.9.0
+- fix(setup): add missing ``scipy`` dependency
+
 Version 4.0.0 (2025-09-09)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

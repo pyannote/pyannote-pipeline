@@ -26,13 +26,13 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import Optional, TextIO, Union, Dict, Any
+from typing import Optional, TextIO, Union, Dict, Any, Sequence
 
 from pathlib import Path
 from collections import OrderedDict
 from .typing import PipelineInput
 from .typing import PipelineOutput
-from .typing import Direction
+from .typing import Directions
 from filelock import FileLock
 import yaml
 import warnings
@@ -517,23 +517,40 @@ class Pipeline:
         """Apply pipeline on input and return its output"""
         raise NotImplementedError
 
-    def get_metric(self) -> "pyannote.metrics.base.BaseMetric":
-        """Return new metric (from pyannote.metrics)
+    def get_metric(
+        self,
+    ) -> Union[
+        "pyannote.metrics.base.BaseMetric",
+        Sequence["pyannote.metrics.base.BaseMetric"],
+    ]:
+        """Return one or several new metrics (from pyannote.metrics)
 
-        When this method is implemented, the returned metric is used as a
-        replacement for the loss method below.
+        When this method is implemented, the returned metric or metrics are
+        used as a replacement for the loss method below. Returning several
+        metrics enables multi-objective optimization and requires
+        :meth:`get_direction` to return the same number of directions.
 
         Returns
         -------
-        metric : `pyannote.metrics.base.BaseMetric`
+        metric : `pyannote.metrics.base.BaseMetric` or sequence
         """
         raise NotImplementedError()
 
-    def get_direction(self) -> Direction:
+    def get_direction(self) -> Directions:
+        """Return optimization direction for each objective.
+
+        Returns
+        -------
+        direction : {"minimize", "maximize"} or sequence
+            Optimization direction. Return one direction per metric or loss
+            value to enable multi-objective optimization.
+        """
         return "minimize"
 
-    def loss(self, input: PipelineInput, output: PipelineOutput) -> float:
-        """Compute loss for given input/output pair
+    def loss(
+        self, input: PipelineInput, output: PipelineOutput
+    ) -> Union[float, Sequence[float]]:
+        """Compute one or several losses for given input/output pair
 
         Parameters
         ----------
@@ -544,8 +561,9 @@ class Pipeline:
 
         Returns
         -------
-        loss : `float`
-            Loss value
+        loss : `float` or sequence
+            Loss value, or one value per objective for multi-objective
+            optimization.
         """
         raise NotImplementedError()
 
