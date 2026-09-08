@@ -47,6 +47,22 @@ def optimizer_tester(pipeline: Pipeline, target: Any):
     assert optimizer.best_params == target
 
 
+@pytest.mark.parametrize(
+    "direction",
+    ["minimize", ("minimize", "maximize")],
+    ids=["single-objective", "multi-objective"],
+)
+def test_default_sampler(direction):
+    class TestPipeline(Pipeline):
+        def get_direction(self):
+            return direction
+
+    optimizer = Optimizer(TestPipeline())
+
+    assert isinstance(optimizer.sampler, TPESampler)
+    assert optimizer.study_.sampler is optimizer.sampler
+
+
 @pytest.mark.parametrize("target, direction", [
     ({'param_a': 10, 'param_b': 10}, "maximize"),
     ({'param_a': 0, 'param_b': 0}, "minimize")

@@ -7,7 +7,8 @@ Next version
 
 - feat(optimize): add multi-objective optimization and Pareto front support
 - fix(optimize): switch to Optuna's supported journal file backend
-- setup: update minimum Optuna version to 4.9.0
+- setup: update minimum Optuna version to 5.0.0 and use its recommended default
+  sampler for both single- and multi-objective optimization
 - fix(setup): add missing ``scipy`` dependency
 
 Version 4.0.0 (2025-09-09)

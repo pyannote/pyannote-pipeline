@@ -76,7 +76,9 @@ class Optimizer:
         there. # TODO -- generate this automatically
     sampler : `str` or sampler instance, optional
         Algorithm for value suggestion. Must be one of "RandomSampler" or
-        "TPESampler", or a sampler instance. Defaults to "TPESampler".
+        "TPESampler", or a sampler instance. When omitted, Optuna chooses its
+        recommended sampler for the study's objective mode ("TPESampler" for
+        both single- and multi-objective studies in Optuna 5).
     pruner : `str` or pruner instance, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner", or a pruner instance.
@@ -126,7 +128,12 @@ class Optimizer:
                 msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
                 raise ValueError(msg)
         elif sampler is None:
-            self.sampler = TPESampler(seed=seed)
+            if seed is not None:
+                self.sampler = TPESampler(seed=seed)
+            else:
+                # Delegate sampler selection to Optuna so that single- and
+                # multi-objective studies use its recommended defaults.
+                self.sampler = None
 
         if isinstance(pruner, BasePruner):
             self.pruner = pruner
@@ -179,6 +186,7 @@ class Optimizer:
             study_kwargs["direction"] = self.directions[0]
 
         self.study_ = optuna.create_study(**study_kwargs)
+        self.sampler = self.study_.sampler
 
         if self.multi_objective:
             try:
