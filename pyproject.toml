@@ -13,10 +13,11 @@ dynamic = [
 
 dependencies = [
     "filelock>=3.17.0",
-    "optuna>=4.2.0",
+    "optuna>=5.0.0",
     "pyannote-core>=6.0.0",
     "pyannote-database>=6.0.0",
     "pyyaml>=6.0.2",
+    "scipy>=1.15.1",
     "tqdm>=4.67.1",
 ]
 
