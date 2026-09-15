@@ -30,7 +30,16 @@
 import time
 import warnings
 from pathlib import Path
-from typing import Iterable, Optional, Callable, Generator, Mapping, Union, Dict
+from typing import (
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import numpy as np
 import optuna.logging
@@ -39,14 +48,14 @@ import optuna.samplers
 from optuna.exceptions import ExperimentalWarning
 from optuna.pruners import BasePruner
 from optuna.samplers import BaseSampler, TPESampler
-from optuna.trial import Trial, FixedTrial
-from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
+from optuna.trial import FixedTrial, Trial
+from optuna.storages import JournalStorage, RDBStorage
+from optuna.storages.journal import JournalFileBackend
 from tqdm import tqdm
-from optuna.storages import RDBStorage, JournalStorage, JournalFileStorage
 from scipy.stats import bayes_mvs
 
 from .pipeline import Pipeline
-from .typing import PipelineInput
+from .typing import Direction, Objective, PipelineInput
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -67,7 +76,9 @@ class Optimizer:
         there. # TODO -- generate this automatically
     sampler : `str` or sampler instance, optional
         Algorithm for value suggestion. Must be one of "RandomSampler" or
-        "TPESampler", or a sampler instance. Defaults to "TPESampler".
+        "TPESampler", or a sampler instance. When omitted, Optuna chooses its
+        recommended sampler for the study's objective mode ("TPESampler" for
+        both single- and multi-objective studies in Optuna 5).
     pruner : `str` or pruner instance, optional
         Algorithm for early pruning of trials. Must be one of "MedianPruner" or
         "SuccessiveHalvingPruner", or a pruner instance.
@@ -105,7 +116,7 @@ class Optimizer:
             elif extension == ".sqlite":
                 self.storage_ = RDBStorage(f"sqlite:///{self.db}")
             elif extension == ".journal":
-                self.storage_ = JournalStorage(JournalFileStorage(f"{self.db}"))
+                self.storage_ = JournalStorage(JournalFileBackend(f"{self.db}"))
         self.study_name = study_name
 
         if isinstance(sampler, BaseSampler):
@@ -117,7 +128,12 @@ class Optimizer:
                 msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
                 raise ValueError(msg)
         elif sampler is None:
-            self.sampler = TPESampler(seed=seed)
+            if seed is not None:
+                self.sampler = TPESampler(seed=seed)
+            else:
+                # Delegate sampler selection to Optuna so that single- and
+                # multi-objective studies use its recommended defaults.
+                self.sampler = None
 
         if isinstance(pruner, BasePruner):
             self.pruner = pruner
@@ -130,47 +146,152 @@ class Optimizer:
         else:
             self.pruner = None
 
+        directions = self.pipeline.get_direction()
+        if isinstance(directions, str):
+            directions = (directions,)
+        else:
+            directions = tuple(directions)
+
+        if not directions:
+            raise ValueError("`pipeline.get_direction()` must not be empty.")
+
+        if any(direction not in {"minimize", "maximize"} for direction in directions):
+            raise ValueError(
+                "`pipeline.get_direction()` must return 'minimize', 'maximize', "
+                "or a non-empty sequence containing those values."
+            )
+
+        self.directions: tuple[Direction, ...] = directions
+        self.multi_objective = len(self.directions) > 1
+
+        if self.multi_objective and self.pruner is not None:
+            raise ValueError(
+                "Optuna does not support trial pruning for multi-objective studies."
+            )
+
         # generate name of study based on pipeline hash
         # Klass = pipeline.__class__
         # study_name = f'{Klass.__module__}.{Klass.__name__}[{hash(pipeline)}]'
 
-        self.study_ = optuna.create_study(
+        study_kwargs = dict(
             study_name=self.study_name,
             load_if_exists=True,
             storage=self.storage_,
             sampler=self.sampler,
             pruner=self.pruner,
-            direction=self.pipeline.get_direction(),
         )
+        if self.multi_objective:
+            study_kwargs["directions"] = self.directions
+        else:
+            study_kwargs["direction"] = self.directions[0]
+
+        self.study_ = optuna.create_study(**study_kwargs)
+        self.sampler = self.study_.sampler
+
+        if self.multi_objective:
+            try:
+                metrics = self._as_sequence(self.pipeline.get_metric())
+            except NotImplementedError:
+                metrics = None
+
+            if metrics is not None:
+                self._validate_objective_count(metrics, source="metrics")
+                metric_names = [
+                    getattr(metric, "name", metric.__class__.__name__)
+                    for metric in metrics
+                ]
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=ExperimentalWarning)
+                    self.study_.set_metric_names(metric_names)
 
         self.average_case = average_case
 
     @property
     def best_loss(self) -> float:
         """Return best loss so far"""
+        if self.multi_objective:
+            raise RuntimeError(
+                "Multi-objective studies have no single best loss. "
+                "Use `pareto_front` instead."
+            )
+
         try:
             best_value = self.study_.best_value
         except Exception:
-            direction: int = 1 if self.pipeline.get_direction() == "minimize" else -1
+            direction: int = 1 if self.directions[0] == "minimize" else -1
             best_value = direction * np.inf
         return best_value
 
     @property
     def best_params(self) -> dict:
         """Return best parameters so far"""
+        if self.multi_objective:
+            raise RuntimeError(
+                "Multi-objective studies have no single best set of parameters. "
+                "Use `pareto_front` instead."
+            )
+
         trial = FixedTrial(self.study_.best_params)
         return self.pipeline.parameters(trial=trial)
 
     @property
     def best_pipeline(self) -> Pipeline:
         """Return pipeline instantiated with best parameters so far"""
+        if self.multi_objective:
+            raise RuntimeError(
+                "Multi-objective studies have no single best pipeline. "
+                "Choose one entry from `pareto_front` and instantiate its parameters."
+            )
+
         return self.pipeline.instantiate(self.best_params)
+
+    @staticmethod
+    def _as_sequence(value) -> tuple:
+        """Normalize scalar or sequence objective values to a tuple."""
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            return tuple(value)
+        return (value,)
+
+    def _validate_objective_count(self, values: Sequence, source: str = "values"):
+        """Check that values and optimization directions have matching sizes."""
+        if len(values) != len(self.directions):
+            raise ValueError(
+                f"Pipeline returned {len(values)} {source}, but "
+                f"`pipeline.get_direction()` returned {len(self.directions)} "
+                "directions."
+            )
+
+    @property
+    def pareto_front(self) -> list[dict]:
+        """Return Pareto-optimal trials with nested pipeline parameters.
+
+        Returns
+        -------
+        pareto_front : list of dict
+            Each entry contains the Optuna trial number, its objective values,
+            and the corresponding nested pipeline parameters. Returns an empty
+            list until at least one trial completes.
+        """
+        if not self.multi_objective:
+            raise RuntimeError(
+                "`pareto_front` is only available for multi-objective studies. "
+                "Use `best_loss` and `best_params` instead."
+            )
+
+        return [
+            {
+                "number": trial.number,
+                "values": tuple(trial.values),
+                "params": self.pipeline.parameters(trial=FixedTrial(trial.params)),
+            }
+            for trial in self.study_.best_trials
+        ]
 
     def get_objective(
         self,
         inputs: Iterable[PipelineInput],
         show_progress: Union[bool, Dict] = False,
-    ) -> Callable[[Trial], float]:
+    ) -> Callable[[Trial], Objective]:
         """
         Create objective function used by optuna
 
@@ -195,8 +316,8 @@ class Optimizer:
         if show_progress == True:
             show_progress = {"desc": "Current trial", "leave": False, "position": 1}
 
-        def objective(trial: Trial) -> float:
-            """Compute objective value
+        def objective(trial: Trial) -> Objective:
+            """Compute objective value or values
 
             Parameter
             ---------
@@ -205,16 +326,18 @@ class Optimizer:
 
             Returns
             -------
-            loss : `float`
-                Loss
+            loss : `float` or tuple
+                One value for single-objective optimization, or one value per
+                objective for multi-objective optimization.
             """
 
             # use pyannote.metrics metric when available
             try:
-                metric = self.pipeline.get_metric()
+                metrics = self._as_sequence(self.pipeline.get_metric())
+                self._validate_objective_count(metrics, source="metrics")
             except NotImplementedError as e:
-                metric = None
-                losses = []
+                metrics = None
+                losses = [[] for _ in self.directions]
 
             processing_time = []
             evaluation_time = []
@@ -248,16 +371,21 @@ class Optimizer:
                 before_evaluation = time.time()
 
                 # when metric is not available, use loss method instead
-                if metric is None:
-                    loss = pipeline.loss(input, output)
-                    losses.append(loss)
+                if metrics is None:
+                    current_losses = self._as_sequence(pipeline.loss(input, output))
+                    self._validate_objective_count(current_losses, source="loss values")
+                    for objective_losses, loss in zip(losses, current_losses):
+                        objective_losses.append(loss)
 
                 # when metric is available,`input` is expected to be provided
                 # by a `pyannote.database` protocol
                 else:
                     from pyannote.database import get_annotated
 
-                    _ = metric(input["annotation"], output, uem=get_annotated(input))
+                    for metric in metrics:
+                        _ = metric(
+                            input["annotation"], output, uem=get_annotated(input)
+                        )
 
                 after_evaluation = time.time()
                 evaluation_time.append(after_evaluation - before_evaluation)
@@ -268,7 +396,9 @@ class Optimizer:
                 if self.pruner is None:
                     continue
 
-                trial.report(np.mean(losses) if metric is None else abs(metric), i)
+                trial.report(
+                    np.mean(losses[0]) if metrics is None else abs(metrics[0]), i
+                )
                 if trial.should_prune():
                     raise optuna.TrialPruned()
 
@@ -278,28 +408,33 @@ class Optimizer:
             trial.set_user_attr("processing_time", sum(processing_time))
             trial.set_user_attr("evaluation_time", sum(evaluation_time))
 
-            if metric is None:
-                if len(np.unique(losses)) == 1:
-                    mean = lower_bound = upper_bound = losses[0]
-                else:
-                    (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(
-                        losses, alpha=0.9
-                    )
+            estimates = []
+            if metrics is None:
+                for objective_losses in losses:
+                    if len(np.unique(objective_losses)) == 1:
+                        mean = lower_bound = upper_bound = objective_losses[0]
+                    else:
+                        (mean, (lower_bound, upper_bound)), _, _ = bayes_mvs(
+                            objective_losses, alpha=0.9
+                        )
+                    estimates.append((mean, lower_bound, upper_bound))
             else:
-                mean, (lower_bound, upper_bound) = metric.confidence_interval(alpha=0.9)
+                estimates = [
+                    (abs(metric), *metric.confidence_interval(alpha=0.9)[1])
+                    for metric in metrics
+                ]
 
             if self.average_case:
-                if metric is None:
-                    return mean
+                values = tuple(mean for mean, _, _ in estimates)
+            else:
+                values = tuple(
+                    upper_bound if direction == "minimize" else lower_bound
+                    for direction, (_, lower_bound, upper_bound) in zip(
+                        self.directions, estimates
+                    )
+                )
 
-                else:
-                    return abs(metric)
-
-            return (
-                upper_bound
-                if self.pipeline.get_direction() == "minimize"
-                else lower_bound
-            )
+            return values if self.multi_objective else values[0]
 
         return objective
 
@@ -324,8 +459,9 @@ class Optimizer:
         Returns
         -------
         result : dict
-            ['loss']
-            ['params'] nested dictionary of optimal parameters
+            Single-objective results contain ``loss`` and ``params`` (a nested
+            dictionary of optimal parameters). Multi-objective results contain
+            ``pareto_front`` instead.
         """
 
         # pipeline is currently being optimized
@@ -344,6 +480,9 @@ class Optimizer:
 
         # pipeline is no longer being optimized
         self.pipeline.training = False
+
+        if self.multi_objective:
+            return {"pareto_front": self.pareto_front}
 
         return {"loss": self.best_loss, "params": self.best_params}
 
@@ -365,16 +504,12 @@ class Optimizer:
         Yields
         ------
         result : dict
-            ['loss']
-            ['params'] nested dictionary of optimal parameters
+            Single-objective results contain ``loss`` and ``params`` (a nested
+            dictionary of optimal parameters). Multi-objective results contain
+            ``pareto_front`` instead.
         """
 
         objective = self.get_objective(inputs, show_progress=show_progress)
-
-        try:
-            best_loss = self.best_loss
-        except ValueError as e:
-            best_loss = np.inf
 
         if warm_start:
             flattened_params = self.pipeline._flatten(warm_start)
@@ -388,6 +523,15 @@ class Optimizer:
 
             # one trial at a time
             self.study_.optimize(objective, n_trials=1, timeout=None, n_jobs=1)
+
+            if self.multi_objective:
+                pareto_front = self.pareto_front
+                if not pareto_front:
+                    continue
+
+                self.pipeline.training = False
+                yield {"pareto_front": pareto_front}
+                continue
 
             try:
                 best_loss = self.best_loss

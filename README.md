@@ -118,6 +118,33 @@ This is where the hyper-parameter optimization actually happens.
 {'eps': 0.1912781975831715, 'min_samples': 18}
 ```
 
+### Multi-objective optimization
+
+A pipeline can optimize several objectives by returning one loss value and one
+direction per objective:
+
+```python
+class TradeoffPipeline(SimplePipeline):
+    def loss(self, dataset, y_pred):
+        y_true = dataset[1]
+        return 1. - v_measure_score(y_true, y_pred), np.unique(y_pred).size
+
+    def get_direction(self):
+        return "minimize", "minimize"
+
+
+multi_optimizer = Optimizer(TradeoffPipeline())
+multi_optimizer.tune(datasets, n_iterations=100)
+
+# each entry contains "number", "values", and nested "params"
+for point in multi_optimizer.pareto_front:
+    print(point["values"], point["params"])
+```
+
+Alternatively, `get_metric` can return a sequence of `pyannote.metrics`
+instances. `get_direction` must return the same number of directions. Scalar
+pipelines keep using `best_loss`, `best_params`, and `best_pipeline` unchanged.
+
 We then compare expected (upper row) and actual (lower row) clustering results with the best set of hyper-parameters
 
 ```python

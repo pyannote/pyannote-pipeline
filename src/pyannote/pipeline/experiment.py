@@ -51,7 +51,7 @@ Common options:
   --iterations=<iterations>  Number of iterations. [default: 1]
   --forever                  Iterate forever.
   --sampler=<sampler>        Choose sampler between RandomSampler or TPESampler
-                             [default: TPESampler].
+                             Defaults to Optuna's recommended sampler.
   --pruner=<pruner>          Choose pruner between MedianPruner or
                              SuccessiveHalvingPruner. Defaults to no pruning.
   --pretrained=<train_dir>   Use parameters in existing training directory to
@@ -268,7 +268,8 @@ class Experiment:
         n_iterations : `int`, optional
             Number of iterations. Defaults to 1.
         sampler : `str`, optional
-            Choose sampler between RandomSampler and TPESampler
+            Choose sampler between RandomSampler and TPESampler. Defaults to
+            Optuna's recommended sampler for the objective mode.
         pruner : `str`, optional
             Choose between MedianPruner or SuccessiveHalvingPruner.
         average_case : `bool`, optional
