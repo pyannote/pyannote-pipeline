@@ -5,6 +5,7 @@ Changelog
 Next version
 ~~~~~~~~~~~~
 
+- BREAKING: drop Python 3.10 support; require Python 3.11 or newer
 - feat(optimize): add multi-objective optimization and Pareto front support
 - fix(optimize): switch to Optuna's supported journal file backend
 - setup: update minimum Optuna version to 5.0.0 and use its recommended default
