@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2020 CNRS
@@ -28,17 +25,16 @@
 # Hadrien TITEUX - https://github.com/hadware
 
 
-from typing import Iterable, Any
+from collections.abc import Iterable, Mapping
+from typing import Any
+
 from optuna.trial import Trial
 
 from .pipeline import Pipeline
-from collections.abc import Mapping
 
 
 class Parameter:
     """Base hyper-parameter"""
-
-    pass
 
 
 class Categorical(Parameter):

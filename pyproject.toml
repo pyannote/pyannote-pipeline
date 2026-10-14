@@ -1,22 +1,20 @@
 [project]
 name = "pyannote-pipeline"
+dynamic = ["version"]
 description = "Tunable pipelines"
 readme = "README.md"
 authors = [
     { name = "Hervé BREDIN", email = "herve@pyannote.ai" }
 ]
-requires-python = ">=3.10"
-
-dynamic = [
-  "version",
-]
+requires-python = ">=3.11"
 
 dependencies = [
     "filelock>=3.17.0",
-    "optuna>=4.2.0",
+    "optuna>=5.0.0",
     "pyannote-core>=6.0.0",
     "pyannote-database>=6.0.0",
     "pyyaml>=6.0.2",
+    "scipy>=1.15.1",
     "tqdm>=4.67.1",
 ]
 
@@ -37,7 +35,7 @@ cli = [
 ]
 
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling==1.32.0", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

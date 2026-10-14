@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2021 CNRS
@@ -26,22 +23,25 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 # Hadrien TITEUX
-from typing import Sequence
+from collections.abc import Sequence
 
 from optuna import Trial
 from optuna.distributions import CategoricalChoiceType
 
 
 class FakeTrial(Trial):
-
     def __init__(self):
         pass
 
     def suggest_uniform(self, name: str, low: float, high: float) -> float:
         return low
 
-    def suggest_int(self, name: str, low: int, high: int, step: int = 1, log: bool = False) -> int:
+    def suggest_int(
+        self, name: str, low: int, high: int, step: int = 1, log: bool = False
+    ) -> int:
         return low
 
-    def suggest_categorical(self, name: str, choices: Sequence[CategoricalChoiceType]) -> CategoricalChoiceType:
+    def suggest_categorical(
+        self, name: str, choices: Sequence[CategoricalChoiceType]
+    ) -> CategoricalChoiceType:
         return choices[0]

@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2020 CNRS
@@ -26,7 +23,8 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import TypeVar
+from collections.abc import Sequence
+from typing import TypeVar, Union
 
 PipelineInput = TypeVar("PipelineInput")
 PipelineOutput = TypeVar("PipelineOutput")
@@ -34,5 +32,7 @@ PipelineOutput = TypeVar("PipelineOutput")
 try:
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal
+    from typing import Literal
 Direction = Literal["minimize", "maximize"]
+Directions = Union[Direction, Sequence[Direction]]
+Objective = Union[float, Sequence[float]]

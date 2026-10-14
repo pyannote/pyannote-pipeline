@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2022 CNRS
@@ -26,20 +23,18 @@
 # AUTHORS
 # Hervé BREDIN - http://herve.niderb.fr
 
-from typing import Optional, TextIO, Union, Dict, Any
-
-from pathlib import Path
-from collections import OrderedDict
-from .typing import PipelineInput
-from .typing import PipelineOutput
-from .typing import Direction
-from filelock import FileLock
-import yaml
 import warnings
+from collections import OrderedDict
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any, TextIO, Union
 
-from pyannote.core import Timeline
-from pyannote.core import Annotation
+import yaml
+from filelock import FileLock
 from optuna.trial import Trial
+from pyannote.core import Annotation, Timeline
+
+from .typing import Directions, PipelineInput, PipelineOutput
 
 
 class Pipeline:
@@ -48,13 +43,13 @@ class Pipeline:
     def __init__(self):
 
         # un-instantiated parameters (= `Parameter` instances)
-        self._parameters: Dict[str, Parameter] = OrderedDict()
+        self._parameters: dict[str, Parameter] = OrderedDict()
 
         # instantiated parameters
-        self._instantiated: Dict[str, Any] = OrderedDict()
+        self._instantiated: dict[str, Any] = OrderedDict()
 
         # sub-pipelines
-        self._pipelines: Dict[str, Pipeline] = OrderedDict()
+        self._pipelines: dict[str, Pipeline] = OrderedDict()
 
         # whether pipeline is currently being optimized
         self.training = False
@@ -67,7 +62,7 @@ class Pipeline:
     def training(self, training):
         self._training = training
         # recursively set sub-pipeline training attribute
-        for _, pipeline in self._pipelines.items():
+        for pipeline in self._pipelines.values():
             pipeline.training = training
 
     def __hash__(self):
@@ -96,7 +91,7 @@ class Pipeline:
             if name in _pipelines:
                 return _pipelines[name]
 
-        msg = "'{}' object has no attribute '{}'".format(type(self).__name__, name)
+        msg = f"'{type(self).__name__}' object has no attribute '{name}'"
         raise AttributeError(msg)
 
     def __setattr__(self, name, value):
@@ -124,9 +119,7 @@ class Pipeline:
 
         if isinstance(value, Parameter):
             if _parameters is None:
-                msg = (
-                    "cannot assign hyper-parameters " "before Pipeline.__init__() call"
-                )
+                msg = "cannot assign hyper-parameters before Pipeline.__init__() call"
                 raise AttributeError(msg)
             remove_from(self.__dict__, _instantiated, _pipelines)
             _parameters[name] = value
@@ -135,7 +128,7 @@ class Pipeline:
         # add/update one sub-pipeline
         if isinstance(value, Pipeline):
             if _pipelines is None:
-                msg = "cannot assign sub-pipelines " "before Pipeline.__init__() call"
+                msg = "cannot assign sub-pipelines before Pipeline.__init__() call"
                 raise AttributeError(msg)
             remove_from(self.__dict__, _parameters, _instantiated)
             _pipelines[name] = value
@@ -163,7 +156,7 @@ class Pipeline:
             object.__delattr__(self, name)
 
     def _flattened_parameters(
-        self, frozen: Optional[bool] = False, instantiated: Optional[bool] = False
+        self, frozen: bool | None = False, instantiated: bool | None = False
     ) -> dict:
         """Get flattened dictionary of parameters
 
@@ -238,7 +231,7 @@ class Pipeline:
         -------
         flattened_params : `dict`
         """
-        flattened_params = dict()
+        flattened_params = {}
         for name, value in nested_params.items():
             if isinstance(value, dict):
                 for subname, subvalue in self._flatten(value).items():
@@ -305,9 +298,9 @@ class Pipeline:
 
     def parameters(
         self,
-        trial: Optional[Trial] = None,
-        frozen: Optional[bool] = False,
-        instantiated: Optional[bool] = False,
+        trial: Trial | None = None,
+        frozen: bool | None = False,
+        instantiated: bool | None = False,
     ) -> dict:
         """Returns nested dictionary of (optionnaly instantiated) parameters.
 
@@ -354,7 +347,6 @@ class Pipeline:
 
     def initialize(self):
         """Instantiate root pipeline with current set of parameters"""
-        pass
 
     def freeze(self, params: dict) -> "Pipeline":
         """Recursively freeze pipeline parameters
@@ -374,7 +366,6 @@ class Pipeline:
         from .parameter import Frozen
 
         for name, value in params.items():
-
             # recursively freeze sub-pipelines parameters
             if name in self._pipelines:
                 if not isinstance(value, dict):
@@ -414,7 +405,6 @@ class Pipeline:
         from .parameter import Frozen
 
         for name, value in params.items():
-
             # recursively call `instantiate` with sub-pipelines
             if name in self._pipelines:
                 if not isinstance(value, dict):
@@ -457,8 +447,8 @@ class Pipeline:
     def dump_params(
         self,
         params_yml: Path,
-        params: Optional[dict] = None,
-        loss: Optional[float] = None,
+        params: dict | None = None,
+        loss: float | None = None,
     ) -> str:
         """Dump parameters to disk
 
@@ -517,23 +507,40 @@ class Pipeline:
         """Apply pipeline on input and return its output"""
         raise NotImplementedError
 
-    def get_metric(self) -> "pyannote.metrics.base.BaseMetric":
-        """Return new metric (from pyannote.metrics)
+    def get_metric(
+        self,
+    ) -> Union[
+        "pyannote.metrics.base.BaseMetric",
+        Sequence["pyannote.metrics.base.BaseMetric"],
+    ]:
+        """Return one or several new metrics (from pyannote.metrics)
 
-        When this method is implemented, the returned metric is used as a
-        replacement for the loss method below.
+        When this method is implemented, the returned metric or metrics are
+        used as a replacement for the loss method below. Returning several
+        metrics enables multi-objective optimization and requires
+        :meth:`get_direction` to return the same number of directions.
 
         Returns
         -------
-        metric : `pyannote.metrics.base.BaseMetric`
+        metric : `pyannote.metrics.base.BaseMetric` or sequence
         """
         raise NotImplementedError()
 
-    def get_direction(self) -> Direction:
+    def get_direction(self) -> Directions:
+        """Return optimization direction for each objective.
+
+        Returns
+        -------
+        direction : {"minimize", "maximize"} or sequence
+            Optimization direction. Return one direction per metric or loss
+            value to enable multi-objective optimization.
+        """
         return "minimize"
 
-    def loss(self, input: PipelineInput, output: PipelineOutput) -> float:
-        """Compute loss for given input/output pair
+    def loss(
+        self, input: PipelineInput, output: PipelineOutput
+    ) -> float | Sequence[float]:
+        """Compute one or several losses for given input/output pair
 
         Parameters
         ----------
@@ -544,8 +551,9 @@ class Pipeline:
 
         Returns
         -------
-        loss : `float`
-            Loss value
+        loss : `float` or sequence
+            Loss value, or one value per objective for multi-objective
+            optimization.
         """
         raise NotImplementedError()
 
@@ -565,7 +573,7 @@ class Pipeline:
 
         return getattr(self, f"write_{self.write_format}")(file, output)
 
-    def write_rttm(self, file: TextIO, output: Union[Timeline, Annotation]):
+    def write_rttm(self, file: TextIO, output: Timeline | Annotation):
         """Write pipeline output to "rttm" file
 
         Parameters
@@ -593,7 +601,7 @@ class Pipeline:
         )
         raise NotImplementedError(msg)
 
-    def write_txt(self, file: TextIO, output: Union[Timeline, Annotation]):
+    def write_txt(self, file: TextIO, output: Timeline | Annotation):
         """Write pipeline output to "txt" file
 
         Parameters

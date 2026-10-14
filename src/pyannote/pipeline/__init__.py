@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2020 CNRS
@@ -30,7 +27,7 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("pyannote-pipeline")
 
-from .pipeline import Pipeline
 from .optimizer import Optimizer
+from .pipeline import Pipeline
 
-__all__ = ["Pipeline", "Optimizer"]
+__all__ = ["Optimizer", "Pipeline"]

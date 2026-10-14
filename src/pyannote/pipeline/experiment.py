@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018- CNRS
@@ -51,7 +48,7 @@ Common options:
   --iterations=<iterations>  Number of iterations. [default: 1]
   --forever                  Iterate forever.
   --sampler=<sampler>        Choose sampler between RandomSampler or TPESampler
-                             [default: TPESampler].
+                             Defaults to Optuna's recommended sampler.
   --pruner=<pruner>          Choose pruner between MedianPruner or
                              SuccessiveHalvingPruner. Defaults to no pruning.
   --pretrained=<train_dir>   Use parameters in existing training directory to
@@ -116,23 +113,19 @@ Configuration file:
 
 """
 
+import itertools
 import os
 import os.path
-import yaml
-import numpy as np
-from typing import Optional
-from pathlib import Path
-from docopt import docopt
-
-import itertools
-from tqdm import tqdm
 from datetime import datetime
+from pathlib import Path
 
-from pyannote.database import FileFinder
-from pyannote.database import registry
-from pyannote.database import get_annotated
-
+import numpy as np
+import yaml
+from docopt import docopt
 from pyannote.core.utils.helper import get_class_by_name
+from pyannote.database import FileFinder, get_annotated, registry
+from tqdm import tqdm
+
 from .optimizer import Optimizer
 
 
@@ -205,7 +198,7 @@ class Experiment:
                 #    key: /path/to/database.yml
                 preprocessors[key] = FileFinder(database_yml=preprocessor)
 
-            except FileNotFoundError as e:
+            except FileNotFoundError:
                 # preprocessors:
                 #    key: /path/to/{uri}.wav
                 template = preprocessor
@@ -246,11 +239,11 @@ class Experiment:
     def train(
         self,
         protocol_name: str,
-        subset: Optional[str] = "development",
-        pretrained: Optional[Path] = None,
+        subset: str | None = "development",
+        pretrained: Path | None = None,
         n_iterations: int = 1,
-        sampler: Optional[str] = None,
-        pruner: Optional[str] = None,
+        sampler: str | None = None,
+        pruner: str | None = None,
         average_case: bool = False,
     ):
         """Train pipeline
@@ -268,7 +261,8 @@ class Experiment:
         n_iterations : `int`, optional
             Number of iterations. Defaults to 1.
         sampler : `str`, optional
-            Choose sampler between RandomSampler and TPESampler
+            Choose sampler between RandomSampler and TPESampler. Defaults to
+            Optuna's recommended sampler for the objective mode.
         pruner : `str`, optional
             Choose between MedianPruner or SuccessiveHalvingPruner.
         average_case : `bool`, optional
@@ -322,7 +316,7 @@ class Experiment:
 
         try:
             best_loss = optimizer.best_loss
-        except ValueError as e:
+        except ValueError:
             best_loss = direction * np.inf
         count = itertools.count() if n_iterations < 0 else range(n_iterations)
 
@@ -367,7 +361,7 @@ class Experiment:
 
         try:
             best_loss = optimizer.best_loss
-        except ValueError as e:
+        except ValueError:
             print("Still waiting for at least one iteration to succeed.")
             return
 
@@ -382,7 +376,7 @@ class Experiment:
         self,
         protocol_name: str,
         output_dir: Path,
-        subset: Optional[str] = "test",
+        subset: str | None = "test",
         use_filter: bool = False,
     ):
         """Apply current best pipeline
@@ -403,7 +397,7 @@ class Experiment:
         # load pipeline metric (when available)
         try:
             metric = self.pipeline_.get_metric()
-        except NotImplementedError as e:
+        except NotImplementedError:
             metric = None
 
         output_dir.mkdir(parents=True, exist_ok=True)
