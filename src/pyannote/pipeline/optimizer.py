@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2021 CNRS
@@ -29,17 +26,8 @@
 
 import time
 import warnings
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import (
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    Mapping,
-    Optional,
-    Sequence,
-    Union,
-)
 
 import numpy as np
 import optuna.logging
@@ -48,11 +36,11 @@ import optuna.samplers
 from optuna.exceptions import ExperimentalWarning
 from optuna.pruners import BasePruner
 from optuna.samplers import BaseSampler, TPESampler
-from optuna.trial import FixedTrial, Trial
 from optuna.storages import JournalStorage, RDBStorage
 from optuna.storages.journal import JournalFileBackend
-from tqdm import tqdm
+from optuna.trial import FixedTrial, Trial
 from scipy.stats import bayes_mvs
+from tqdm import tqdm
 
 from .pipeline import Pipeline
 from .typing import Direction, Objective, PipelineInput
@@ -94,11 +82,11 @@ class Optimizer:
     def __init__(
         self,
         pipeline: Pipeline,
-        db: Optional[Path] = None,
-        study_name: Optional[str] = None,
-        sampler: Optional[Union[str, BaseSampler]] = None,
-        pruner: Optional[Union[str, BasePruner]] = None,
-        seed: Optional[int] = None,
+        db: Path | None = None,
+        study_name: str | None = None,
+        sampler: str | BaseSampler | None = None,
+        pruner: str | BasePruner | None = None,
+        seed: int | None = None,
         average_case: bool = True,
     ):
         self.pipeline = pipeline
@@ -124,7 +112,7 @@ class Optimizer:
         elif isinstance(sampler, str):
             try:
                 self.sampler = getattr(optuna.samplers, sampler)(seed=seed)
-            except AttributeError as e:
+            except AttributeError:
                 msg = '`sampler` must be one of "RandomSampler" or "TPESampler"'
                 raise ValueError(msg)
         elif sampler is None:
@@ -140,7 +128,7 @@ class Optimizer:
         elif isinstance(pruner, str):
             try:
                 self.pruner = getattr(optuna.pruners, pruner)()
-            except AttributeError as e:
+            except AttributeError:
                 msg = '`pruner` must be one of "MedianPruner" or "SuccessiveHalvingPruner"'
                 raise ValueError(msg)
         else:
@@ -173,13 +161,13 @@ class Optimizer:
         # Klass = pipeline.__class__
         # study_name = f'{Klass.__module__}.{Klass.__name__}[{hash(pipeline)}]'
 
-        study_kwargs = dict(
-            study_name=self.study_name,
-            load_if_exists=True,
-            storage=self.storage_,
-            sampler=self.sampler,
-            pruner=self.pruner,
-        )
+        study_kwargs = {
+            "study_name": self.study_name,
+            "load_if_exists": True,
+            "storage": self.storage_,
+            "sampler": self.sampler,
+            "pruner": self.pruner,
+        }
         if self.multi_objective:
             study_kwargs["directions"] = self.directions
         else:
@@ -290,7 +278,7 @@ class Optimizer:
     def get_objective(
         self,
         inputs: Iterable[PipelineInput],
-        show_progress: Union[bool, Dict] = False,
+        show_progress: bool | dict = False,
     ) -> Callable[[Trial], Objective]:
         """
         Create objective function used by optuna
@@ -311,7 +299,7 @@ class Optimizer:
 
         # this is needed for `inputs` that can be only iterated once.
         inputs = list(inputs)
-        n_inputs = len(inputs)
+        len(inputs)
 
         if show_progress == True:
             show_progress = {"desc": "Current trial", "leave": False, "position": 1}
@@ -335,7 +323,7 @@ class Optimizer:
             try:
                 metrics = self._as_sequence(self.pipeline.get_metric())
                 self._validate_objective_count(metrics, source="metrics")
-            except NotImplementedError as e:
+            except NotImplementedError:
                 metrics = None
                 losses = [[] for _ in self.directions]
 
@@ -442,8 +430,8 @@ class Optimizer:
         self,
         inputs: Iterable[PipelineInput],
         n_iterations: int = 10,
-        warm_start: dict = None,
-        show_progress: Union[bool, Dict] = True,
+        warm_start: dict | None = None,
+        show_progress: bool | dict = True,
     ) -> dict:
         """Tune pipeline
 
@@ -489,8 +477,8 @@ class Optimizer:
     def tune_iter(
         self,
         inputs: Iterable[PipelineInput],
-        warm_start: dict = None,
-        show_progress: Union[bool, Dict] = True,
+        warm_start: dict | None = None,
+        show_progress: bool | dict = True,
     ) -> Generator[dict, None, None]:
         """
 
@@ -536,7 +524,7 @@ class Optimizer:
             try:
                 best_loss = self.best_loss
                 best_params = self.best_params
-            except ValueError as e:
+            except ValueError:
                 continue
 
             # pipeline is no longer being optimized

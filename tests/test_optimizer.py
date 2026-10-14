@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # The MIT License (MIT)
 
 # Copyright (c) 2018-2022 CNRS
@@ -27,14 +24,14 @@
 # Hervé BREDIN - http://herve.niderb.fr
 # Hadrien TITEUX
 
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pytest
 from optuna.pruners import MedianPruner
 from optuna.samplers import GridSampler, TPESampler
 
-from pyannote.pipeline import Pipeline, Optimizer
+from pyannote.pipeline import Optimizer, Pipeline
 from pyannote.pipeline.parameter import Integer, ParamDict
 from pyannote.pipeline.typing import Direction
 
@@ -63,13 +60,15 @@ def test_default_sampler(direction):
     assert optimizer.study_.sampler is optimizer.sampler
 
 
-@pytest.mark.parametrize("target, direction", [
-    ({'param_a': 10, 'param_b': 10}, "maximize"),
-    ({'param_a': 0, 'param_b': 0}, "minimize")
-])
+@pytest.mark.parametrize(
+    "target, direction",
+    [
+        ({"param_a": 10, "param_b": 10}, "maximize"),
+        ({"param_a": 0, "param_b": 0}, "minimize"),
+    ],
+)
 def test_basic_optimization(target, direction: Direction):
     class SumPipeline(Pipeline):
-
         def __init__(self):
             super().__init__()
             self.param_a: int = Integer(0, 10)
@@ -87,18 +86,19 @@ def test_basic_optimization(target, direction: Direction):
     optimizer_tester(pipeline=SumPipeline(), target=target)
 
 
-@pytest.mark.parametrize("target, direction", [
-    ({'param_dict': {'param_a': 10, 'param_b': 10}}, "maximize"),
-    ({'param_dict': {'param_a': 0, 'param_b': 0}}, "minimize")
-])
+@pytest.mark.parametrize(
+    "target, direction",
+    [
+        ({"param_dict": {"param_a": 10, "param_b": 10}}, "maximize"),
+        ({"param_dict": {"param_a": 0, "param_b": 0}}, "minimize"),
+    ],
+)
 def test_structured_dict_param_optim(target, direction: Direction):
     class SumPipeline(Pipeline):
-
         def __init__(self):
             super().__init__()
-            self.param_dict: Dict[str, int] = ParamDict(
-                param_a=Integer(0, 10),
-                param_b=Integer(0, 10)
+            self.param_dict: dict[str, int] = ParamDict(
+                param_a=Integer(0, 10), param_b=Integer(0, 10)
             )
 
         def __call__(self, data: float) -> float:
@@ -115,7 +115,6 @@ def test_structured_dict_param_optim(target, direction: Direction):
 
 def test_multi_objective_loss_optimization():
     class TradeoffPipeline(Pipeline):
-
         def __init__(self):
             super().__init__()
             self.param = Integer(0, 4)
@@ -137,9 +136,7 @@ def test_multi_objective_loss_optimization():
     pareto_front = optimizer.pareto_front
     assert result == {"pareto_front": pareto_front}
     assert {point["params"]["param"] for point in pareto_front} == {0, 1, 2}
-    assert all(
-        set(point) == {"number", "values", "params"} for point in pareto_front
-    )
+    assert all(set(point) == {"number", "values", "params"} for point in pareto_front)
 
     with pytest.raises(RuntimeError, match="pareto_front"):
         _ = optimizer.best_loss
@@ -151,7 +148,6 @@ def test_multi_objective_loss_optimization():
 
 def test_multi_objective_metrics():
     class AccumulatedMetric:
-
         def __init__(self, name, transform):
             self.name = name
             self.transform = transform
@@ -170,7 +166,6 @@ def test_multi_objective_metrics():
             return value, (value, value)
 
     class TradeoffPipeline(Pipeline):
-
         def __init__(self):
             super().__init__()
             self.param = Integer(0, 4)
@@ -217,7 +212,6 @@ def test_multi_objective_rejects_pruning():
 
 def test_objective_count_must_match_direction_count():
     class InvalidPipeline(Pipeline):
-
         def __call__(self, data):
             return data
 

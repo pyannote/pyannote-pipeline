@@ -127,7 +127,7 @@ direction per objective:
 class TradeoffPipeline(SimplePipeline):
     def loss(self, dataset, y_pred):
         y_true = dataset[1]
-        return 1. - v_measure_score(y_true, y_pred), np.unique(y_pred).size
+        return 1.0 - v_measure_score(y_true, y_pred), np.unique(y_pred).size
 
     def get_direction(self):
         return "minimize", "minimize"
