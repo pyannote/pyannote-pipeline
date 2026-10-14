@@ -1,9 +1,4 @@
-```python
->>> %pylab inline
-Populating the interactive namespace from numpy and matplotlib
-```
-
-# pyannote.pipeline
+![pyannote.pipeline](.github/social-preview.png)
 
 ## Installation
 ```bash
