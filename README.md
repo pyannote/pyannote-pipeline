@@ -1,4 +1,4 @@
-![pyannote.pipeline](.github/social-preview.png)
+![pyannote.pipeline](https://raw.githubusercontent.com/pyannote/pyannote-pipeline/main/.github/social-preview.png)
 
 ## Installation
 ```bash
@@ -48,7 +48,7 @@ We start by gathering a "training set" of 5 different clustering datasets.
 <Figure size 1440x288 with 5 Axes>
 ```
 
-![datasets](README_datasets.png)
+![datasets](https://raw.githubusercontent.com/pyannote/pyannote-pipeline/main/README_datasets.png)
 
 
 Then, we define the clustering pipeline (including its set of hyper-parameters and the objective function).
@@ -160,7 +160,7 @@ We then compare expected (upper row) and actual (lower row) clustering results w
 <Figure size 1440x576 with 10 Axes>
 ```
 
-![results](README_results.png)
+![results](https://raw.githubusercontent.com/pyannote/pyannote-pipeline/main/README_results.png)
 
 
 ## Documentation
